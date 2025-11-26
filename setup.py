@@ -26,13 +26,13 @@ setup_kwargs = {
     'license': 'GPL-3.0-or-later',
     'long_description': ('<!-- THIS FILE IS EXCLUSIVELY MAINTAINED by the project aedev.aedev v0.3.28 -->\n'
  '<!-- THIS FILE IS EXCLUSIVELY MAINTAINED by the project aedev.namespace_root_tpls v0.3.21 -->\n'
- '# commands 0.3.1\n'
+ '# commands 0.3.2\n'
  '\n'
  '[![GitLab develop](https://img.shields.io/gitlab/pipeline/aedev-group/aedev_commands/develop?logo=python)](\n'
  '    https://gitlab.com/aedev-group/aedev_commands)\n'
  '[![LatestPyPIrelease](\n'
- '    https://img.shields.io/gitlab/pipeline/aedev-group/aedev_commands/release0.3.1?logo=python)](\n'
- '    https://gitlab.com/aedev-group/aedev_commands/-/tree/release0.3.1)\n'
+ '    https://img.shields.io/gitlab/pipeline/aedev-group/aedev_commands/release0.3.2?logo=python)](\n'
+ '    https://gitlab.com/aedev-group/aedev_commands/-/tree/release0.3.2)\n'
  '[![PyPIVersions](https://img.shields.io/pypi/v/aedev_commands)](\n'
  '    https://pypi.org/project/aedev-commands/#history)\n'
  '\n'
@@ -107,9 +107,9 @@ setup_kwargs = {
         'Documentation': 'https://aedev.readthedocs.io/en/latest/_autosummary/aedev.commands.html',
         'Repository': 'https://gitlab.com/aedev-group/aedev_commands',
         'Source': 'https://aedev.readthedocs.io/en/latest/_modules/aedev/commands.html'},
-    'python_requires': '>=3.9',
+    'python_requires': '>=3.12',
     'url': 'https://gitlab.com/aedev-group/aedev_commands',
-    'version': '0.3.1',
+    'version': '0.3.2',
     'zip_safe': True,
 }
 

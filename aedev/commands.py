@@ -137,7 +137,7 @@ from ae.shell import STDERR_BEG_MARKER, hint, in_os_env, mask_token, sh_exit_if_
 from aedev.base import COMMIT_MSG_FILE_NAME, DEF_MAIN_BRANCH                                # type: ignore
 
 
-__version__ = '0.3.1'
+__version__ = '0.3.2'
 
 
 EXEC_GIT_ERR_PREFIX = "sh_exec() returned error "       #: used by sh_exit_if_exec_err to mark error in 1st output line
@@ -431,7 +431,7 @@ def git_commit(project_path: str, project_version: str, *extra_args: str,
     else:
         file_name = check_commit_msg_file(project_path, commit_msg_file=commit_msg_file)
         commit_msg = read_file(file_name)
-        commit_msg = commit_msg.replace('{apk_ext}', '{{apk_ext}}').format(project_version=project_version)
+        commit_msg = commit_msg.replace('{project_version}', project_version)  # no format() to allow e.g. {apk_ext}
         write_file(file_name, commit_msg)
         args = [f"--file={file_name}"]  # not valid: "--file <file>" nor "--file='<file>'
     args.extend(extra_args)
