@@ -107,9 +107,9 @@ setup_kwargs = {
         'Documentation': 'https://aedev.readthedocs.io/en/latest/_autosummary/aedev.commands.html',
         'Repository': 'https://gitlab.com/aedev-group/aedev_commands',
         'Source': 'https://aedev.readthedocs.io/en/latest/_modules/aedev/commands.html'},
-    'python_requires': '>=3.9',
+    'python_requires': '>=3.12',
     'url': 'https://gitlab.com/aedev-group/aedev_commands',
-    'version': '0.3.1',
+    'version': '0.3.2',
     'zip_safe': True,
 }
 
