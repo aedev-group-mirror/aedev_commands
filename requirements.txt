@@ -1,1 +1,5 @@
-# runtime dependencies of the aedev.commands project
+ae_base
+ae_core
+ae_console
+ae_shell
+aedev_base
