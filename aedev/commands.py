@@ -119,6 +119,7 @@ and the constant :data:`~aedev.base.PIP_INSTALL_CMD`::
     with in_prj_dir_venv(project_root_path):
         sh_err = sh_exec(PIP_INSTALL_CMD + "-r requirements.txt")
 """
+# pylint: disable=too-many-lines
 import os
 import sys
 import tempfile
@@ -127,17 +128,17 @@ from contextlib import contextmanager
 from urllib.parse import urlparse
 from typing import Callable, Iterable, Iterator, Optional, cast
 
-from ae.base import (                                                                       # type: ignore
+from ae.base import (                                                                                   # type: ignore
     DEF_PROJECT_PARENT_FOLDER, UNSET,
     dummy_function, in_wd, norm_path, now_str, os_path_isdir, os_path_isfile, os_path_join, os_path_sep,
     read_file, write_file)
-from ae.core import main_app_instance, temp_context_get_or_create, AppBase                  # type: ignore
-from ae.console import ConsoleApp                                                           # type: ignore
-from ae.shell import STDERR_BEG_MARKER, hint, in_os_env, mask_token, sh_exit_if_exec_err    # type: ignore
-from aedev.base import COMMIT_MSG_FILE_NAME, DEF_MAIN_BRANCH                                # type: ignore
+from ae.core import main_app_instance, temp_context_get_or_create, AppBase                              # type: ignore
+from ae.console import ConsoleApp                                                                       # type: ignore
+from ae.shell import STDERR_BEG_MARKER, hint, in_os_env, mask_token, sh_exec, sh_exit_if_exec_err       # type: ignore
+from aedev.base import COMMIT_MSG_FILE_NAME, DEF_MAIN_BRANCH, PIP_CMD                                   # type: ignore
 
 
-__version__ = '0.3.2'
+__version__ = '0.3.3'
 
 
 EXEC_GIT_ERR_PREFIX = "sh_exec() returned error "       #: used by sh_exit_if_exec_err to mark error in 1st output line
@@ -148,6 +149,9 @@ GIT_REMOTE_ORIGIN = 'origin'                            #: git origin remote nam
 GIT_REMOTE_UPSTREAM = 'upstream'                        #: git upstream remote name of original/forked repository
 GIT_RELEASE_REF_PREFIX = 'release'                      #: git repository release branch name prefix
 GIT_VERSION_TAG_PREFIX = 'v'                            #: git repository version tag prefix
+
+PIP_EDITABLE_PROJECT_PATH_PREFIX = 'Editable project location: '
+""" caption/field-name of the console output of the pip show command. """
 
 SHELL_LOG_FILE_NAME_SUFFIX = "_sh.log"                  #: default file name (suffix) of the shell log file
 
@@ -251,6 +255,28 @@ def check_commit_msg_file(project_path: str, *hint_args, commit_msg_file: str = 
             main_app.shutdown(381, error_message=err)
         raise FileNotFoundError(err)  # un-skip-able-err fallback if shutdown() got mocked or main_app is not registered
     return commit_msg_file
+
+
+def editable_project_root_path(project_name: str) -> str:
+    """ determine the project path of a project package installed as editable.
+
+    :param project_name:        project|package name to search for.
+    :return:                    project source root path of an editable installed package
+                                or empty string, if the package is not installed as editable.
+    """
+    output: list[str] = []
+    if sh_exec(PIP_CMD, extra_args=("show", project_name), lines_output=output) == 0:
+        for line in output:
+            if line.startswith(PIP_EDITABLE_PROJECT_PATH_PREFIX):
+                return line[len(PIP_EDITABLE_PROJECT_PATH_PREFIX):]
+
+    # fallback if pip is an older version (before 21, without PEP 660 support)
+    for install_path in sys.path:
+        egg_link_file = os_path_join(install_path, project_name + '.egg-link')
+        if os_path_isfile(egg_link_file):
+            return read_file(egg_link_file).split(os.linesep)[0]
+
+    return ""
 
 
 def git_add(project_path: str, *extra_args: str):

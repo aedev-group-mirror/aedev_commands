@@ -7,6 +7,7 @@ import os
 import contextlib
 import datetime
 import shutil
+import sys
 import tempfile
 
 from unittest.mock import PropertyMock, patch
@@ -31,8 +32,8 @@ from aedev.base import COMMIT_MSG_FILE_NAME, DEF_MAIN_BRANCH, code_file_version
 from aedev.commands import (
     DEF_PROJECT_PARENT_FOLDER, EXEC_GIT_ERR_PREFIX,
     GIT_CLONE_CACHE_CONTEXT, GIT_FOLDER_NAME, GIT_REMOTE_ORIGIN, GIT_REMOTE_UPSTREAM,
-    GIT_RELEASE_REF_PREFIX, GIT_VERSION_TAG_PREFIX, SHELL_LOG_FILE_NAME_SUFFIX,
-    activate_venv, active_venv, bytes_file_diff, check_commit_msg_file,
+    GIT_RELEASE_REF_PREFIX, GIT_VERSION_TAG_PREFIX, PIP_EDITABLE_PROJECT_PATH_PREFIX, SHELL_LOG_FILE_NAME_SUFFIX,
+    activate_venv, active_venv, bytes_file_diff, check_commit_msg_file, editable_project_root_path,
     git_add, git_any, git_branches, git_branch_files, git_branch_remotes, git_checkout, git_clone, git_commit,
     git_current_branch, git_diff, git_fetch, git_init_if_needed, git_merge, git_push, git_ref_in_branch,
     git_remote_domain_group, git_remotes, git_renew_remotes,
@@ -1236,6 +1237,38 @@ class TestHelpers:
         assert isinstance(cons_app, ConsoleApp)
         assert debug_or_verbose(app_obj=cons_app) is True
 
+    def test_editable_project_root_path(self, tmp_path, monkeypatch):
+        pkg_name = 'tst_pkg_editable'
+
+        assert editable_project_root_path(pkg_name) == ""
+
+        root_dir = 'any_prj_root_folder'
+        egg_link_file = os_path_join(str(tmp_path), pkg_name + '.egg-link')
+        monkeypatch.setattr(sys, 'path', [str(tmp_path)] + list(sys.path))
+        write_file(egg_link_file, root_dir)
+
+        assert editable_project_root_path(pkg_name) == root_dir
+
+    def test_editable_project_root_path_returned(self):
+        def _sh_exec_mock(_cmd_line: str, lines_output: list[str], **_kwargs) -> int:
+            lines_output.append(PIP_EDITABLE_PROJECT_PATH_PREFIX + 'tst_ret_pth')
+            return 0
+
+        with patch("aedev.commands.sh_exec", side_effect=_sh_exec_mock):
+            assert editable_project_root_path('any_prj_nam') == 'tst_ret_pth'
+
+    @skip_gitlab_ci
+    def test_editable_project_root_path_local(self):
+        if active_venv().startswith('aedev3'):
+            assert not editable_project_root_path('ae_base')
+        else:
+            assert not editable_project_root_path('aedev_project_tpls')
+        with in_venv('ae312'):
+            assert not editable_project_root_path('ae_base')
+        with in_venv('aedev39'):
+            prj = 'aedev_project_manager'
+            assert editable_project_root_path(prj) == norm_path(os_path_join("~", DEF_PROJECT_PARENT_FOLDER, prj))
+
     def test_get_domain_user_var_from_cons_app_dotenv(self, cons_app, empty_repo_path):
         var_value = 'ConfVarValue'
         var_name = 'conf_var'
@@ -1475,7 +1508,7 @@ def old_and_new_env():
 
 class TestVenv:
     def test_activate_venv_if_venv_is_not_installed(self, capsys, cons_app):
-        with patch('aedev.commands.venv_bin_path', return_value=""):  # patch to simulate not installed venv on local machine
+        with patch('aedev.commands.venv_bin_path', return_value=""):  # simulate not installed venv on local machine
             with patch('aedev.commands.active_venv', return_value='mocked_active_venv'):
                 venv_name = activate_venv(name='mocked_new_venv')
 
@@ -1505,7 +1538,8 @@ class TestVenv:
 
     def test_venv_bin_path_if_venv_is_not_installed(self, monkeypatch):
         # patch activa_venv() and os_path_isfile('.python-version') to simulate not installed pyenv on local machine
-        with patch('aedev.commands.active_venv', return_value=""), patch('aedev.commands.os_path_isfile', return_value=False):
+        with (patch('aedev.commands.active_venv', return_value=""),
+              patch('aedev.commands.os_path_isfile', return_value=False)):
             assert venv_bin_path() == ""
 
             monkeypatch.delenv('PYENV_ROOT', raising=False)
@@ -1633,14 +1667,16 @@ class TestVenvIntegration:
         with patch('aedev.commands.os_path_isfile', return_value=False):
             assert venv_bin_path() == os_path_join(os.getenv('PYENV_ROOT'), 'versions', curr_venv, 'bin')
 
-        with patch('aedev.commands.os_path_isfile', return_value=False), patch('aedev.commands.active_venv', return_value=""):
+        with (patch('aedev.commands.os_path_isfile', return_value=False),
+              patch('aedev.commands.active_venv', return_value="")):
             assert venv_bin_path() == ""
 
         filed_venv = read_file('.python-version').split(os.linesep)[0]
         assert venv_bin_path() == os_path_join(os.getenv('PYENV_ROOT'), 'versions', filed_venv, 'bin')
 
         any_venv = 'any_tst_venv_name'
-        with patch('aedev.commands.read_file', return_value=any_venv), patch('aedev.commands.os_path_isdir', return_value=True):
+        with (patch('aedev.commands.read_file', return_value=any_venv),
+              patch('aedev.commands.os_path_isdir', return_value=True)):
             assert venv_bin_path() == os_path_join(os.getenv('PYENV_ROOT'), 'versions', any_venv, 'bin')
 
     def test_venv_bin_path_with_python_version_file_in_parent_dirs(self, empty_repo_path):
