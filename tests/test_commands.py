@@ -1249,14 +1249,6 @@ class TestHelpers:
 
         assert editable_project_root_path(pkg_name) == root_dir
 
-    def test_editable_project_root_path_returned(self):
-        def _sh_exec_mock(_cmd_line: str, lines_output: list[str], **_kwargs) -> int:
-            lines_output.append(PIP_EDITABLE_PROJECT_PATH_PREFIX + 'tst_ret_pth')
-            return 0
-
-        with patch("aedev.commands.sh_exec", side_effect=_sh_exec_mock):
-            assert editable_project_root_path('any_prj_nam') == 'tst_ret_pth'
-
     @skip_gitlab_ci
     def test_editable_project_root_path_local(self):
         if active_venv().startswith('aedev3'):
@@ -1268,6 +1260,14 @@ class TestHelpers:
         with in_venv('aedev39'):
             prj = 'aedev_project_manager'
             assert editable_project_root_path(prj) == norm_path(os_path_join("~", DEF_PROJECT_PARENT_FOLDER, prj))
+
+    def test_editable_project_root_path_returned(self):
+        def _sh_exec_mock(_cmd_line: str, lines_output: list[str], **_kwargs) -> int:
+            lines_output.append(PIP_EDITABLE_PROJECT_PATH_PREFIX + 'tst_ret_pth')
+            return 0
+
+        with patch("aedev.commands.sh_exec", side_effect=_sh_exec_mock):
+            assert editable_project_root_path('any_prj_nam') == 'tst_ret_pth'
 
     def test_get_domain_user_var_from_cons_app_dotenv(self, cons_app, empty_repo_path):
         var_value = 'ConfVarValue'

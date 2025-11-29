@@ -138,7 +138,7 @@ from ae.shell import STDERR_BEG_MARKER, hint, in_os_env, mask_token, sh_exec, sh
 from aedev.base import COMMIT_MSG_FILE_NAME, DEF_MAIN_BRANCH, PIP_CMD                                   # type: ignore
 
 
-__version__ = '0.3.3'
+__version__ = '0.3.4'
 
 
 EXEC_GIT_ERR_PREFIX = "sh_exec() returned error "       #: used by sh_exit_if_exec_err to mark error in 1st output line
@@ -158,7 +158,6 @@ SHELL_LOG_FILE_NAME_SUFFIX = "_sh.log"                  #: default file name (su
 # types ---------------------------------------------------------------------------------------------------------------
 
 GitRemotesType = dict[str, str]                         #: git remote urls dict with keys like 'origin'/'upstream'
-
 
 # helper functions ----------------------------------------------------------------------------------------------------
 
