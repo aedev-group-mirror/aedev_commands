@@ -138,7 +138,7 @@ from ae.shell import STDERR_BEG_MARKER, hint, in_os_env, mask_token, sh_exec, sh
 from aedev.base import COMMIT_MSG_FILE_NAME, DEF_MAIN_BRANCH, PIP_CMD                                   # type: ignore
 
 
-__version__ = '0.3.4'
+__version__ = '0.3.5'
 
 
 EXEC_GIT_ERR_PREFIX = "sh_exec() returned error "       #: used by sh_exit_if_exec_err to mark error in 1st output line
@@ -772,8 +772,8 @@ def git_tag_list(project_path: str, remote="", tag_pattern: str = "*") -> list[s
             output = sh_exit_if_git_err(389, "git ls-remote",
                                         extra_args=("--tags", "--refs", "--sort=version:refname", remote, tag_pattern),
                                         exit_on_err=False)
-            if output and output[0].startswith(EXEC_GIT_ERR_PREFIX):
-                output = []
+            if output and (output[0].startswith(EXEC_GIT_ERR_PREFIX) or output[0] == STDERR_BEG_MARKER):
+                output = []                                         # or no stdout but stderr w/ warning: redirecting to
             else:
                 output = [line.split("\t")[-1].split("/")[-1] for line in output]
         else:
