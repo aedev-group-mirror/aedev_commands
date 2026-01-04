@@ -26,7 +26,7 @@ from ae.core import (
     DEBUG_LEVEL_DISABLED, DEBUG_LEVEL_ENABLED, DEBUG_LEVEL_VERBOSE,
     main_app_instance, temp_context_cleanup, temp_context_get_or_create)
 from ae.console import MAIN_SECTION_NAME, ConsoleApp
-from ae.shell import debug_or_verbose, get_domain_user_var, hint, mask_token, sh_exec, sh_exit_if_exec_err
+from ae.shell import debug_or_verbose, get_domain_user_var, hint, sh_exec, sh_exit_if_exec_err
 from aedev.base import COMMIT_MSG_FILE_NAME, DEF_MAIN_BRANCH, code_file_version
 
 from aedev.commands import (
@@ -1366,25 +1366,6 @@ class TestHelpers:
         with patch('ae.shell.debug_or_verbose', return_value=False):
             assert not hint("hint command", _hint_tst_callable, "extra message")
             assert not hint("hint command", _hint_tst_callable.__name__, "extra message")
-
-    def test_mask_token(self):
-        # noinspection SpellCheckingInspection
-        token = "glpat-gitlab token format ending at the @/ampersand directly followed by the gitlab.com domain"
-        text = "a text block containing a gitlab URL with a token: https://UsaNäm:" + token + "@gitlab.com"
-
-        assert token not in mask_token(text)
-        assert token not in mask_token([text])[0]
-
-        token = "ghp_-github token format ending at the @/ampersand directly followed by the github.com domain"
-        text = "a text block containing a github URL with a token: https://YouSaNem:" + token + "@github.com"
-
-        assert token not in mask_token(text)
-        assert token not in mask_token([text])[0]
-
-        # noinspection SpellCheckingInspection
-        text = "skip masking of text blocks with a start token like ghp_ or glpat- but missing end token"
-
-        assert mask_token(text) == text     # neither throws str.index()-ValueError nor stuck in endless-loop
 
     def test_owner_project_from_url(self):
         assert owner_project_from_url("owner/project") == "owner/project"
