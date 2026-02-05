@@ -1418,18 +1418,22 @@ class TestShellExecuteAndLogging:
     def test_sh_log_hiding_private_access_token(self, tmp_path):
         log_dir = str(tmp_path)
         log_file = os_path_join(log_dir, SHELL_LOG_FILE_NAME_SUFFIX)
-        tok_end = "xyz" + "@gitlab.com"
+        tok_beg = 'https://' + "OptionalUserName:"
+        tok_end = "xyz" + '@gitlab.com'
+        token = "secret-part-of-personal-access-token"
         # noinspection SpellCheckingInspection
-        token = "glpat-" + "secret-personal_access-token" + tok_end
-        log_comment = "# log file comment with token" + token
+        url_w_tok = tok_beg + 'glpat-' + token + tok_end
+        log_comment = "# log file comment with token" + url_w_tok
         sh_logs(log_enable_dir=log_dir)
 
         with in_wd(log_dir):
-            sh_log(log_comment, extra_args=[token, token], cl_err=99, lines_output=token)
+            sh_log(log_comment, extra_args=[url_w_tok, url_w_tok], cl_err=99, lines_output=[url_w_tok])
 
         assert os_path_isfile(log_file)
-        assert token not in read_file(log_file)
-        assert tok_end in read_file(log_file)
+        log_content = read_file(log_file)
+        assert token not in log_content
+        assert tok_beg in log_content
+        assert tok_end in log_content
 
     def test_sh_logs(self, tmp_path):
         cmd_dir = str(tmp_path)
