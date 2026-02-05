@@ -1,4 +1,5 @@
 ae_base
+ae_paths
 ae_core
 ae_console
 ae_shell
