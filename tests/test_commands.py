@@ -27,7 +27,7 @@ from ae.core import (
     main_app_instance, temp_context_cleanup, temp_context_get_or_create)
 from ae.console import MAIN_SECTION_NAME, ConsoleApp
 from ae.shell import debug_or_verbose, get_domain_user_var, hint, sh_exec, sh_exit_if_exec_err
-from aedev.base import COMMIT_MSG_FILE_NAME, DEF_MAIN_BRANCH, code_file_version
+from aedev.base import COMMIT_MSG_FILE_NAME, DEF_MAIN_BRANCH, TEST_PROJECTS_NAMESPACE, code_file_version
 
 from aedev.commands import (
     DEF_PROJECT_PARENT_FOLDER, EXEC_GIT_ERR_PREFIX,
@@ -63,7 +63,7 @@ skip_if_not_maintainer = pytest.mark.skipif('not bool(mtn_tst_repo_token)',
 #                                                 reason="GitLab integration tests personal-access-token not available")
 
 mtn_tst_pkg_name = tst_prj_name = "unit_tst_prj_name"
-mtn_tst_root_url = f"https://oauth2:{mtn_tst_repo_token}@{tst_repo_domain}/aetst-group"
+mtn_tst_root_url = f"https://oauth2:{mtn_tst_repo_token}@{tst_repo_domain}/{TEST_PROJECTS_NAMESPACE}-group"
 mtn_tst_repo_url = f"{mtn_tst_root_url}/{mtn_tst_pkg_name}.git"
 
 
