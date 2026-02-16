@@ -1,4 +1,4 @@
-# THIS FILE IS EXCLUSIVELY MAINTAINED by the project aedev.project_tpls v0.3.75
+# THIS FILE IS EXCLUSIVELY MAINTAINED by the project aedev.project_tpls v0.3.76
 """ setup of aedev namespace module portion commands: software development operation commands helpers. """
 import sys
 # noinspection PyUnresolvedReferences
@@ -28,7 +28,6 @@ setup_kwargs = {
             'aedev_project_tpls',
             'aedev_aedev',
             'anybadge',
-            'coverage-badge',
             'flake8',
             'mypy',
             'pylint',
@@ -41,7 +40,6 @@ setup_kwargs = {
         'docs': [],
         'tests': [
             'anybadge',
-            'coverage-badge',
             'flake8',
             'mypy',
             'pylint',
@@ -84,7 +82,7 @@ setup_kwargs = {
     },
     'python_requires': '>=3.12',
     'url': 'https://gitlab.com/aedev-group/aedev_commands',
-    'version': '0.3.7',
+    'version': '0.3.8',
     'zip_safe': True,
 }
 
