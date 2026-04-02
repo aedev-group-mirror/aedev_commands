@@ -138,7 +138,7 @@ from ae.shell import STDERR_BEG_MARKER, hint, in_os_env, mask_token, sh_exec, sh
 from aedev.base import COMMIT_MSG_FILE_NAME, DEF_MAIN_BRANCH, PIP_CMD                                   # type: ignore
 
 
-__version__ = '0.3.8'
+__version__ = '0.3.9'
 
 
 EXEC_GIT_ERR_PREFIX = "sh_exec() returned error "       #: used by sh_exit_if_exec_err to mark error in 1st output line
@@ -273,7 +273,7 @@ def editable_project_root_path(project_name: str) -> str:
     for install_path in sys.path:
         egg_link_file = os_path_join(install_path, project_name + '.egg-link')
         if os_path_isfile(egg_link_file):
-            return read_file(egg_link_file).split(os.linesep)[0]
+            return read_file(egg_link_file).splitlines()[0]
 
     return ""
 
@@ -1013,7 +1013,7 @@ def venv_bin_path(name: str = "") -> str:
         loc_env_file = '.python-version'
         for _ in range(6):
             if os_path_isfile(loc_env_file):
-                name = read_file(loc_env_file).split(os.linesep)[0]
+                name = read_file(loc_env_file).splitlines()[0]
                 break
             loc_env_file = ".." + os_path_sep + loc_env_file
         else:
