@@ -1656,7 +1656,7 @@ class TestVenvIntegration:
               patch('aedev.commands.active_venv', return_value="")):
             assert venv_bin_path() == ""
 
-        filed_venv = read_file('.python-version').split(os.linesep)[0]
+        filed_venv = read_file('.python-version').splitlines()[0]
         assert venv_bin_path() == os_path_join(os.getenv('PYENV_ROOT'), 'versions', filed_venv, 'bin')
 
         any_venv = 'any_tst_venv_name'

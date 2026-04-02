@@ -1,12 +1,12 @@
-<!-- THIS FILE IS EXCLUSIVELY MAINTAINED by the project aedev.aedev v0.3.30 -->
-<!-- THIS FILE IS EXCLUSIVELY MAINTAINED by the project aedev.namespace_root_tpls v0.3.21 -->
-# commands 0.3.8
+<!-- THIS FILE IS EXCLUSIVELY MAINTAINED by the project aedev.aedev v0.3.32 -->
+<!-- THIS FILE IS EXCLUSIVELY MAINTAINED by the project aedev.namespace_root_tpls v0.3.27 -->
+# commands 0.3.9
 
 [![GitLab develop](https://img.shields.io/gitlab/pipeline/aedev-group/aedev_commands/develop?logo=python)](
     https://gitlab.com/aedev-group/aedev_commands)
 [![LatestPyPIrelease](
-    https://img.shields.io/gitlab/pipeline/aedev-group/aedev_commands/release0.3.8?logo=python)](
-    https://gitlab.com/aedev-group/aedev_commands/-/tree/release0.3.8)
+    https://img.shields.io/gitlab/pipeline/aedev-group/aedev_commands/release0.3.9?logo=python)](
+    https://gitlab.com/aedev-group/aedev_commands/-/tree/release0.3.9)
 [![PyPIVersions](https://img.shields.io/pypi/v/aedev_commands)](
     https://pypi.org/project/aedev-commands/#history)
 
@@ -35,8 +35,8 @@
     https://pypi.org/project/aedev-commands/#files)
 
 
-## installation
 
+## installation
 
 execute the following command to install the
 aedev.commands module
@@ -69,7 +69,9 @@ https://gitlab.com/aedev-group/aedev_commands/-/blob/develop/CONTRIBUTING.rst)
 
 ## namespace portion documentation
 
-information on the features and usage of this portion are available at
+the documentation of the source code of this portion is available at
 [ReadTheDocs](
 https://aedev.readthedocs.io/en/latest/_autosummary/aedev.commands.html
 "aedev_commands documentation").
+
+
