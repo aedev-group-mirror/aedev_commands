@@ -10,6 +10,7 @@ import shutil
 import sys
 import tempfile
 
+from typing import cast
 from unittest.mock import PropertyMock, patch
 
 import pytest
@@ -18,9 +19,10 @@ from tests.conftest import skip_gitlab_ci
 
 from ae.base import (
     UNSET,
-    camel_to_snake, in_wd, load_dotenvs, load_env_var_defaults, norm_name, norm_path,
-    os_path_basename, os_path_dirname, os_path_isdir, os_path_isfile, os_path_join, os_path_relpath, project_main_file,
+    camel_to_snake, in_wd, norm_name, norm_path,
+    os_path_basename, os_path_dirname, os_path_isdir, os_path_isfile, os_path_join, os_path_relpath,
     read_file, write_file)
+from ae.system import load_dotenvs, load_env_var_defaults, project_main_file
 from ae.paths import path_items
 from ae.core import (
     DEBUG_LEVEL_DISABLED, DEBUG_LEVEL_ENABLED, DEBUG_LEVEL_VERBOSE,
@@ -43,7 +45,7 @@ from aedev.commands import (
 
 # initialize test environment and declare test constants and fixtures (reduced tests on GitLab CI)
 try:
-    LOCAL_VENV = read_file(".python-version").strip()
+    LOCAL_VENV = cast(str, read_file(".python-version")).strip()
 except FileNotFoundError:       # fails at GitLab CI
     LOCAL_ENV = ""
 tst_repo_domain = "gitlab.com"
@@ -69,11 +71,13 @@ mtn_tst_repo_url = f"{mtn_tst_root_url}/{mtn_tst_pkg_name}.git"
 
 def teardown_module():
     """ check if the tested module is still set up correctly at the end of this test module. """
+    # noinspection PyStringConversionWithoutDunderMethod
     print(f"##### teardown_module {os_path_basename(__file__)} BEG {main_app_instance()=}")
 
     temp_context_cleanup(GIT_CLONE_CACHE_CONTEXT)       # remove temporary dirs like e.g. the cloned template projects
     temp_context_cleanup()
 
+    # noinspection PyStringConversionWithoutDunderMethod
     print(f"##### teardown_module {os_path_basename(__file__)} END {main_app_instance()=}")
 
 
@@ -783,7 +787,7 @@ class TestGitCommands:
         git_files = git_diff(changed_repo_path, "--name-only")
         assert set(git_files) == {'ChangeD.y', 'deleteD.x', 'rename.it'}
 
-        pth_files = set(path_items(os_path_join(changed_repo_path, "**")))
+        pth_files: set[str] = set(path_items(os_path_join(changed_repo_path, "**")))
         assert (set(os_path_relpath(_, changed_repo_path) for _ in pth_files if os_path_isfile(_))
                 == {'addEd.ooo', 'ChangeD.y', 'reNamed', 'IgnoreD'})
 
@@ -1033,7 +1037,7 @@ class TestGitCommands:
         assert new_remotes[GIT_REMOTE_UPSTREAM] == 'added-up-url' + ".git"
 
     def test_git_status_on_changed_repo(self, changed_repo_path, cons_app):
-        files = set(path_items(os_path_join(changed_repo_path, "**")))
+        files: set[str] = set(path_items(os_path_join(changed_repo_path, "**")))
 
         output = git_status(changed_repo_path)
         for file in files:
@@ -1647,22 +1651,22 @@ class TestVenvIntegration:
     def test_venv_bin_path_ae_shell(self):
         curr_venv = active_venv()
 
-        assert venv_bin_path(name=curr_venv) == os_path_join(os.getenv('PYENV_ROOT'), 'versions', curr_venv, 'bin')
+        assert venv_bin_path(name=curr_venv) == os_path_join(os.getenv('PYENV_ROOT', ""), 'versions', curr_venv, 'bin')
 
         with patch('aedev.commands.os_path_isfile', return_value=False):
-            assert venv_bin_path() == os_path_join(os.getenv('PYENV_ROOT'), 'versions', curr_venv, 'bin')
+            assert venv_bin_path() == os_path_join(os.getenv('PYENV_ROOT', ""), 'versions', curr_venv, 'bin')
 
         with (patch('aedev.commands.os_path_isfile', return_value=False),
               patch('aedev.commands.active_venv', return_value="")):
             assert venv_bin_path() == ""
 
         filed_venv = read_file('.python-version').splitlines()[0]
-        assert venv_bin_path() == os_path_join(os.getenv('PYENV_ROOT'), 'versions', filed_venv, 'bin')
+        assert venv_bin_path() == os_path_join(os.getenv('PYENV_ROOT', ""), 'versions', filed_venv, 'bin')
 
         any_venv = 'any_tst_venv_name'
         with (patch('aedev.commands.read_file', return_value=any_venv),
               patch('aedev.commands.os_path_isdir', return_value=True)):
-            assert venv_bin_path() == os_path_join(os.getenv('PYENV_ROOT'), 'versions', any_venv, 'bin')
+            assert venv_bin_path() == os_path_join(os.getenv('PYENV_ROOT', ""), 'versions', any_venv, 'bin')
 
     def test_venv_bin_path_with_python_version_file_in_parent_dirs(self, empty_repo_path):
         any_venv = 'above_tst_venv_name'
@@ -1674,12 +1678,12 @@ class TestVenvIntegration:
                 os.chdir(sub_dir)
 
                 with patch('aedev.commands.os_path_isdir', return_value=True):
-                    assert venv_bin_path() == os_path_join(os.getenv('PYENV_ROOT'), 'versions', any_venv, 'bin')
+                    assert venv_bin_path() == os_path_join(os.getenv('PYENV_ROOT', ""), 'versions', any_venv, 'bin')
 
     def test_venv_bin_path_errors(self, monkeypatch):
         curr_venv = active_venv()
 
-        assert venv_bin_path(name=curr_venv) == os_path_join(os.getenv('PYENV_ROOT'), 'versions', curr_venv, 'bin')
+        assert venv_bin_path(name=curr_venv) == os_path_join(os.getenv('PYENV_ROOT', ""), 'versions', curr_venv, 'bin')
 
         monkeypatch.delenv('PYENV_ROOT', raising=False)
         assert venv_bin_path() == ""
