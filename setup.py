@@ -80,7 +80,7 @@ setup_kwargs = {
     },
     'python_requires': '>=3.12',
     'url': 'https://gitlab.com/aedev-group/aedev_commands',
-    'version': '0.3.10',
+    'version': '0.3.11',
     'zip_safe': True,
 }
 

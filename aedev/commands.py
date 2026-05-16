@@ -138,7 +138,7 @@ from ae.shell import STDERR_BEG_MARKER, hint, in_os_env, mask_token, sh_exec, sh
 from aedev.base import COMMIT_MSG_FILE_NAME, DEF_MAIN_BRANCH, PIP_CMD                                   # type: ignore
 
 
-__version__ = '0.3.10'
+__version__ = '0.3.11'
 
 
 EXEC_GIT_ERR_PREFIX = "sh_exec() returned error "       #: used by sh_exit_if_exec_err to mark error in 1st output line
@@ -399,11 +399,11 @@ def git_checkout(project_path: str, *extra_args: str,
     return os.linesep.join(output)
 
 
-def git_clone(repo_root: str, project_name: str, *extra_args: str,
+def git_clone(repo_parent_url: str, project_name: str, *extra_args: str,
               branch_or_tag: str = "", parent_path: str = "", enable_log: bool = False) -> str:
-    """ clone a git remote repository onto your local machine.
+    """ clone a git remote repository from a repository hoster onto your local machine.
 
-    :param repo_root:           repository root url without the project name to clone.
+    :param repo_parent_url:     repository parent/group url (without the project name to clone).
     :param project_name:        project name to clone.
     :param extra_args:          extra arguments passed onto the git clone command.
     :param branch_or_tag:       repo branch to clone. if not specified then the main branch will be cloned.
@@ -427,7 +427,7 @@ def git_clone(repo_root: str, project_name: str, *extra_args: str,
         args.append("--single-branch")
     if extra_args:
         args.extend(extra_args)
-    args.append(f"{repo_root}/{project_name}.git")
+    args.append(f"{repo_parent_url}/{project_name}.git")
 
     with in_prj_dir_venv(parent_path):
         output = sh_exit_if_git_err(315, "git clone", extra_args=args, exit_on_err=False,
