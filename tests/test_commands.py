@@ -10,7 +10,6 @@ import shutil
 import sys
 import tempfile
 
-from typing import cast
 from unittest.mock import PropertyMock, patch
 
 import pytest
@@ -21,7 +20,7 @@ from ae.base import (
     UNSET,
     camel_to_snake, in_wd, norm_name, norm_path,
     os_path_basename, os_path_dirname, os_path_isdir, os_path_isfile, os_path_join, os_path_relpath,
-    read_file, write_file)
+    read_file, write_bin_file, write_file)
 from ae.system import load_dotenvs, load_env_var_defaults, project_main_file
 from ae.paths import path_items
 from ae.core import (
@@ -45,7 +44,7 @@ from aedev.commands import (
 
 # initialize test environment and declare test constants and fixtures (reduced tests on GitLab CI)
 try:
-    LOCAL_VENV = cast(str, read_file(".python-version")).strip()
+    LOCAL_VENV = read_file(".python-version").strip()
 except FileNotFoundError:       # fails at GitLab CI
     LOCAL_ENV = ""
 tst_repo_domain = "gitlab.com"
@@ -1164,7 +1163,7 @@ class TestGitCommands:
 class TestHelpers:
     def test_bytes_file_diff(self, cons_app, tmp_path):
         tst_fil_nam = os_path_join(str(tmp_path), 'tst_fil_nam.tst')
-        write_file(tst_fil_nam, b"")
+        write_bin_file(tst_fil_nam, b"")
         diff = bytes_file_diff(b"", tst_fil_nam)
         assert not diff
 

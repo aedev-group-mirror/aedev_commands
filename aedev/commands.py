@@ -130,7 +130,7 @@ from typing import Callable, Iterable, Iterator, Optional, cast
 
 from ae.base import (                                                                                   # type: ignore
     DEF_PROJECT_PARENT_FOLDER, UNSET,
-    dummy_function, in_wd, norm_path, now_str, os_path_isdir, os_path_isfile, os_path_join, os_path_sep,
+    dummy_function, extend_file, in_wd, norm_path, now_str, os_path_isdir, os_path_isfile, os_path_join, os_path_sep,
     read_file, write_file)
 from ae.core import main_app_instance, temp_context_get_or_create, AppBase                              # type: ignore
 from ae.console import ConsoleApp                                                                       # type: ignore
@@ -138,7 +138,7 @@ from ae.shell import STDERR_BEG_MARKER, hint, in_os_env, mask_token, sh_exec, sh
 from aedev.base import COMMIT_MSG_FILE_NAME, DEF_MAIN_BRANCH, PIP_CMD                                   # type: ignore
 
 
-__version__ = '0.3.11'
+__version__ = '0.3.12'
 
 
 EXEC_GIT_ERR_PREFIX = "sh_exec() returned error "       #: used by sh_exit_if_exec_err to mark error in 1st output line
@@ -958,7 +958,7 @@ def sh_log(comment_or_command: str, extra_args: Iterable[str] = (), cl_err: int 
     log_lines = mask_token(log_lines)
 
     for log_path in log_file_paths or sh_logs(log_name_prefix=log_name_prefix):
-        write_file(log_path, log_lines, extra_mode='a')
+        extend_file(log_path, log_lines)
 
 
 def sh_logs(log_enable_dir: str = "", log_name_prefix: str = "") -> list[str]:
