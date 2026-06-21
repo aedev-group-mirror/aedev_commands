@@ -1,4 +1,4 @@
-# THIS FILE IS EXCLUSIVELY MAINTAINED by the project aedev.project_tpls v0.3.78
+# THIS FILE IS EXCLUSIVELY MAINTAINED by the project aedev.project_tpls v0.3.79
 """ setup of aedev namespace module portion commands: software development operation commands helpers. """
 import sys
 # noinspection PyUnresolvedReferences
@@ -50,6 +50,7 @@ setup_kwargs = {
     },
     'install_requires': [
         'ae_base',
+        'ae_system',
         'ae_paths',
         'ae_core',
         'ae_console',
@@ -80,7 +81,7 @@ setup_kwargs = {
     },
     'python_requires': '>=3.12',
     'url': 'https://gitlab.com/aedev-group/aedev_commands',
-    'version': '0.3.12',
+    'version': '0.3.13',
     'zip_safe': True,
 }
 

@@ -1,5 +1,5 @@
 ae_base
-# ae_system   # only for unit tests (also imported by ae_paths/ae_core/..)
+ae_system
 ae_paths
 ae_core
 ae_console
