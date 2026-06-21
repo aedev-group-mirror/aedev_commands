@@ -39,7 +39,8 @@ from aedev.commands import (
     git_current_branch, git_diff, git_fetch, git_init_if_needed, git_merge, git_push, git_ref_in_branch,
     git_remote_domain_group, git_remotes, git_renew_remotes,
     git_status, git_tag_add, git_tag_list, git_tag_remotes, git_uncommitted,
-    in_prj_dir_venv, in_venv, owner_project_from_url, sh_exit_if_git_err, sh_log, sh_logs, venv_bin_path)
+    in_prj_dir_venv, in_venv, owner_project_from_url, sh_exit_if_git_err, sh_log, sh_logs,
+    venv_bin_path, venv_module_var_val)
 
 
 # initialize test environment and declare test constants and fixtures (reduced tests on GitLab CI)
@@ -1487,14 +1488,7 @@ class TestShellExecuteAndLogging:
             os.remove(home_log)
 
 
-@pytest.fixture
-def old_and_new_env():
-    old_venv = active_venv()
-    new_venv = 'aedev312' if old_venv == 'aedev39' else 'aedev39'
-    yield old_venv, new_venv
-
-
-class TestVenv:
+class TestVenv:     # venv tests that are running also on the repo/CI host
     def test_activate_venv_if_venv_is_not_installed(self, capsys, cons_app):
         with patch('aedev.commands.venv_bin_path', return_value=""):  # simulate not installed venv on local machine
             with patch('aedev.commands.active_venv', return_value='mocked_active_venv'):
@@ -1533,6 +1527,24 @@ class TestVenv:
             monkeypatch.delenv('PYENV_ROOT', raising=False)
 
             assert venv_bin_path() == ""
+
+    def test_venv_module_var_val(self):     # more tests in TestVenvIntegration
+        tst_dict = venv_module_var_val("setup", 'setup_kwargs')
+        assert isinstance(tst_dict, dict)
+        assert 'name' in tst_dict
+        assert 'url' in tst_dict
+        assert 'version' in tst_dict
+        assert tst_dict['name'] == 'aedev_commands'
+
+        assert venv_module_var_val('setup', 'NOT_EXISTING_TST_MODULE_VAR_NAME') is UNSET
+
+
+@pytest.fixture
+def old_and_new_env():
+    """ provide another VENV for the integration tests. """
+    old_venv = active_venv()
+    new_venv = 'aedev312' if old_venv == 'ae312' else 'ae312'
+    yield old_venv, new_venv
 
 
 @skip_gitlab_ci             # pyenv not available on GitLab CI
@@ -1608,12 +1620,12 @@ class TestVenvIntegration:
         old_venv, new_venv = old_and_new_env
 
         assert os.getcwd() != empty_repo_path
-        assert new_venv not in venv_bin_path().split(os.path.sep)
+        assert new_venv not in venv_bin_path().split("/")
         with in_prj_dir_venv(project_path=empty_repo_path, venv_name=new_venv):
             assert os.getcwd() == empty_repo_path
-            assert new_venv in venv_bin_path().split(os.path.sep)
+            assert new_venv in venv_bin_path().split("/")
         assert os.getcwd() != empty_repo_path
-        assert new_venv not in venv_bin_path().split(os.path.sep)
+        assert new_venv not in venv_bin_path().split("/")
 
     def test_in_venv(self):
         cur_venv = active_venv()
@@ -1624,7 +1636,7 @@ class TestVenvIntegration:
     def test_in_venv_old_and_new(self, cons_app, old_and_new_env):
         old_venv, new_venv = old_and_new_env
         assert active_venv() == old_venv
-        with in_venv(name=new_venv):
+        with in_venv(venv_name=new_venv):
             assert active_venv() == new_venv
         assert active_venv() == old_venv
 
@@ -1637,23 +1649,23 @@ class TestVenvIntegration:
         assert active_venv() == old_venv
 
         assert active_venv() == old_venv
-        assert new_venv not in venv_bin_path().split(os.path.sep)
-        assert new_venv not in venv_bin_path(name=old_venv).split(os.path.sep)
-        with in_venv(name=new_venv):
+        assert new_venv not in venv_bin_path().split("/")
+        assert new_venv not in venv_bin_path(venv_name=old_venv).split("/")
+        with in_venv(venv_name=new_venv):
             assert active_venv() == new_venv
-            assert new_venv not in venv_bin_path().split(os.path.sep)
-            assert new_venv in venv_bin_path(name=new_venv).split(os.path.sep)
+            assert new_venv not in venv_bin_path().split("/")
+            assert new_venv in venv_bin_path(venv_name=new_venv).split("/")
         assert active_venv() == old_venv
-        assert new_venv not in venv_bin_path().split(os.path.sep)
-        assert new_venv not in venv_bin_path(name=old_venv).split(os.path.sep)
+        assert new_venv not in venv_bin_path().split("/")
+        assert new_venv not in venv_bin_path(venv_name=old_venv).split("/")
 
     def test_venv_bin_path_ae_shell(self):
-        curr_venv = active_venv()
+        act_env = active_venv()
 
-        assert venv_bin_path(name=curr_venv) == os_path_join(os.getenv('PYENV_ROOT', ""), 'versions', curr_venv, 'bin')
+        assert venv_bin_path(venv_name=act_env) == os_path_join(os.getenv('PYENV_ROOT', ""), 'versions', act_env, 'bin')
 
         with patch('aedev.commands.os_path_isfile', return_value=False):
-            assert venv_bin_path() == os_path_join(os.getenv('PYENV_ROOT', ""), 'versions', curr_venv, 'bin')
+            assert venv_bin_path() == os_path_join(os.getenv('PYENV_ROOT', ""), 'versions', act_env, 'bin')
 
         with (patch('aedev.commands.os_path_isfile', return_value=False),
               patch('aedev.commands.active_venv', return_value="")):
@@ -1680,9 +1692,17 @@ class TestVenvIntegration:
                     assert venv_bin_path() == os_path_join(os.getenv('PYENV_ROOT', ""), 'versions', any_venv, 'bin')
 
     def test_venv_bin_path_errors(self, monkeypatch):
-        curr_venv = active_venv()
+        act_env = active_venv()
 
-        assert venv_bin_path(name=curr_venv) == os_path_join(os.getenv('PYENV_ROOT', ""), 'versions', curr_venv, 'bin')
+        assert venv_bin_path(venv_name=act_env) == os_path_join(os.getenv('PYENV_ROOT', ""), 'versions', act_env, 'bin')
 
         monkeypatch.delenv('PYENV_ROOT', raising=False)
         assert venv_bin_path() == ""
+
+    def test_venv_module_var_val(self):
+        tst_dict = venv_module_var_val('setup', 'setup_kwargs', cwd="../aedev_project_manager")
+        assert isinstance(tst_dict, dict)
+        assert 'name' in tst_dict
+        assert 'url' in tst_dict
+        assert 'version' in tst_dict
+        assert tst_dict['name'] == 'aedev_project_manager'

@@ -124,13 +124,14 @@ import os
 import sys
 import tempfile
 
+from ast import literal_eval
 from contextlib import contextmanager
 from urllib.parse import urlparse
-from typing import Callable, Iterable, Iterator, Optional, cast
+from typing import Any, Callable, Iterable, Iterator, Optional, cast
 
 from ae.base import (                                                                                   # type: ignore
-    DEF_PROJECT_PARENT_FOLDER, UNSET,
-    dummy_function, extend_file, in_wd, norm_path, now_str, os_path_isdir, os_path_isfile, os_path_join, os_path_sep,
+    DEF_PROJECT_PARENT_FOLDER, UNSET, UnsetType,
+    dummy_function, extend_file, in_wd, norm_path, now_str, os_path_isdir, os_path_isfile, os_path_join,
     read_file, write_file)
 from ae.core import main_app_instance, temp_context_get_or_create, AppBase                              # type: ignore
 from ae.console import ConsoleApp                                                                       # type: ignore
@@ -138,7 +139,7 @@ from ae.shell import STDERR_BEG_MARKER, hint, in_os_env, mask_token, sh_exec, sh
 from aedev.base import COMMIT_MSG_FILE_NAME, DEF_MAIN_BRANCH, PIP_CMD                                   # type: ignore
 
 
-__version__ = '0.3.12'
+__version__ = '0.3.13'
 
 
 EXEC_GIT_ERR_PREFIX = "sh_exec() returned error "       #: used by sh_exit_if_exec_err to mark error in 1st output line
@@ -157,7 +158,7 @@ SHELL_LOG_FILE_NAME_SUFFIX = "_sh.log"                  #: default file name (su
 
 # types ---------------------------------------------------------------------------------------------------------------
 
-GitRemotesType = dict[str, str]                         #: git remote urls dict with keys like 'origin'/'upstream'
+GitRemotesType = dict[str, str]                         #: git remote urls dict with keys like 'origin' / 'upstream'
 
 # helper functions ----------------------------------------------------------------------------------------------------
 
@@ -189,7 +190,7 @@ def activate_venv(name: str = "", app_obj: Optional[AppBase] = None) -> str:
             app_obj.po(f"    * skipping venv activation, because activate script '{activate_script_path}' not found")
         return ""
 
-    new_name = bin_path.split(os_path_sep)[-2]
+    new_name = bin_path.split("/")[-2]
     if old_name == new_name:
         if app_obj:
             app_obj.vpo(f"    _ skipped activation of venv '{new_name}' because it is already activated")
@@ -209,11 +210,11 @@ def activate_venv(name: str = "", app_obj: Optional[AppBase] = None) -> str:
 def active_venv() -> str:
     """ determine the virtual environment that is currently active.
 
-    .. note:: the current venv gets set via `data:`os.environ` on start of this Python app or by :func:`activate_venv`.
+    .. hint:: the current venv gets set via `data:`os.environ` on start of this Python app or by :func:`activate_venv`.
 
     :return:                    the name of the currently active venv.
     """
-    return os.getenv('VIRTUAL_ENV', "").split(os_path_sep)[-1]
+    return norm_path(os.getenv('VIRTUAL_ENV', "")).split("/")[-1]   # normalize path for bash-emulation under MS Windows
 
 
 def bytes_file_diff(file_content: bytes, file_path: str, line_sep: str = os.linesep) -> str:
@@ -646,7 +647,7 @@ def git_remote_domain_group(project_path: str,
         return "", ""
 
     url_parts = urlparse(remote_url)
-    return url_parts.hostname or "", url_parts.path[1:].split('/')[0]
+    return url_parts.hostname or "", url_parts.path[1:].split("/")[0]
 
 
 def git_remotes(project_path: str) -> GitRemotesType:
@@ -825,27 +826,28 @@ def git_uncommitted(project_path: str) -> set[str]:
 
 
 @contextmanager
-def in_prj_dir_venv(project_path: str, venv_name: str = "") -> Iterator[None]:
-    """ ensure the current working directory and the specified or .python-version-configured Python Virtual Environment.
+def in_prj_dir_venv(project_path: str = ".", venv_name: str = "") -> Iterator[None]:
+    """ set CWD to the project root, os.environ from .env files and the specified or .python-version-configured venv.
 
     :param project_path:        path to the project root folder to switch the current working directory in this context.
+                                using the actual CWD if not specified.
     :param venv_name:           name of the Python Virtual Environment to activate in this context. if not specified
                                 (or as empty string), then the venv configured via the file .python-version will be
                                 activated.
     :return:
     """
-    with in_wd(project_path), in_os_env(project_path), in_venv(name=venv_name):
+    with in_wd(project_path), in_os_env(project_path), in_venv(venv_name=venv_name):
         yield
 
 
 @contextmanager
-def in_venv(name: str = "") -> Iterator[None]:
+def in_venv(venv_name: str = "") -> Iterator[None]:
     """ ensure the virtual environment gets activated within the context.
 
-    :param name:                the name of the venv to activate. if not specified, then the venv of the project in the
+    :param venv_name:           the name of the venv to activate. if not specified, then the venv of the project in the
                                 current working directory tree will be activated.
     """
-    old_venv = activate_venv(name)
+    old_venv = activate_venv(venv_name)
     yield
     if old_venv:
         activate_venv(old_venv)
@@ -990,10 +992,10 @@ def sh_logs(log_enable_dir: str = "", log_name_prefix: str = "") -> list[str]:
     return log_files
 
 
-def venv_bin_path(name: str = "") -> str:
+def venv_bin_path(venv_name: str = "") -> str:
     """ determine the absolute bin/executables folder path of a virtual pyenv environment.
 
-    :param name:                the name of the venv. if not specified, then the venv name will be determined from the
+    :param venv_name:           the name of the venv. if not specified, then the venv name will be determined from the
                                 first found ``.python-version`` file, starting in the current working directory (cwd)
                                 and up to 5 parent directories above. if no ``.python-version`` file could be found
                                 then the name of the currently active venv will be used (via the function
@@ -1004,22 +1006,57 @@ def venv_bin_path(name: str = "") -> str:
                                 .. note::
                                     under Windows/win32 the base name of the returned path is 'Scripts' (not 'bin'), and
                                     the executables have a file extension (e.g., pip.exe, activate.bat, python.exe).
+                                    ensures "/" path separators to work properly in WSL/bash-emulation under MS Windows.
     """
     venv_root = os.getenv('PYENV_ROOT')
     if not venv_root:   # pyenv is not installed
         return ""
 
-    if not name:
+    if not venv_name:
         loc_env_file = '.python-version'
         for _ in range(6):
             if os_path_isfile(loc_env_file):
-                name = read_file(loc_env_file).splitlines()[0]
+                venv_name = read_file(loc_env_file).splitlines()[0]
                 break
-            loc_env_file = ".." + os_path_sep + loc_env_file
+            loc_env_file = ".." + "/" + loc_env_file
         else:
-            name = active_venv()
-            if not name:
+            venv_name = active_venv()
+            if not venv_name:
                 return ""
 
-    bin_path = os_path_join(venv_root, 'versions', name, 'Scripts' if sys.platform == "win32" else 'bin')
-    return bin_path if os_path_isdir(bin_path) else ""
+    bin_path = os_path_join(venv_root, 'versions', venv_name, 'Scripts' if sys.platform == "win32" else 'bin')
+    return bin_path.replace("\\", "/") if os_path_isdir(bin_path) else ""
+
+
+def venv_module_var_val(import_name: str, var_name: str, cwd: str = ".", venv_name: str = "",
+                        validator: Callable[[Any], bool] = lambda _: True) -> Any | UnsetType | None:
+    """ determine the variable value that is declared in a Python module and parseable via `ast.literal_eval`.
+
+    :param import_name:         import-/dot-name of the module to get the variable value from.
+    :param var_name:            name of the variable declared within the module. the value of the variable has to be
+                                parsable by `ast.literal_eval`.
+    :param cwd:                 the CWD to set for the Python interpreter of the venv to run.
+    :param venv_name:           the name of the Python virtual environment to use. using the venv of the
+                                current working directory or :paramref:`~venv_module_attr.cwd`, if not specified.
+    :param validator:           callable called for each line of the console output, with the variable value as
+                                argument, returning True if the variable value is correct. useful if command line output
+                                may contain extra prefixes/lines (e.g. warnings), that have to be skipped/ignored.
+    :return:                    module variable value (parseable by `ast.literal_eval`),
+                                or UNSET on error, if the module got not found or if the module variable doesn't exist.
+
+    .. note:: the PyPI package/project :mod:`ae.system` has to be installed in the used/destination VENV.
+    """
+    code = f"from ae.system import module_attr; print(module_attr('{import_name}', '{var_name}'))"
+    output: list[str] = []
+    with in_prj_dir_venv(project_path=cwd, venv_name=venv_name):
+        sh_exit_if_exec_err(324, f'python -c "{code}"', lines_output=output, shell=True)
+
+    for line in output:
+        try:
+            val = literal_eval(line)
+            if validator(val):
+                return val
+        except SyntaxError:
+            pass    # ignoring errors and warnings like "__init__() called too early; no main app instance"
+
+    return UNSET
