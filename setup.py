@@ -1,15 +1,14 @@
-# THIS FILE IS EXCLUSIVELY MAINTAINED by the project aedev.project_tpls v0.3.79
+# THIS FILE IS EXCLUSIVELY MAINTAINED by the project aedev.project_tpls v0.3.82
 """ setup of aedev namespace module portion commands: software development operation commands helpers. """
-import sys
-# noinspection PyUnresolvedReferences
 import pathlib
-# noinspection PyUnresolvedReferences
+import sys
+from typing import Any
 import setuptools
 
 
 print("SetUp " + __name__ + ": " + sys.executable + str(sys.argv) + f" {sys.path=}")
 
-setup_kwargs = {
+setup_kwargs: dict[str, Any] = {
     'author': 'AndiEcker',
     'author_email': 'aecker2@gmail.com',
     'classifiers': [
@@ -81,10 +80,10 @@ setup_kwargs = {
     },
     'python_requires': '>=3.12',
     'url': 'https://gitlab.com/aedev-group/aedev_commands',
-    'version': '0.3.13',
+    'version': '0.3.14',
     'zip_safe': True,
 }
 
 if __name__ == "__main__":
     setuptools.setup(**setup_kwargs)
-    pass
+    ...

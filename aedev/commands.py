@@ -4,8 +4,7 @@ software development operation commands helpers
 
 .. hint::
     this module is designed to provide a comprehensive set of constants, types, and helper functions
-    for executing and managing DevOps on your Python projects, like e.g. the Git and Pip
-    command-line interfaces and Python virtual environments.
+    for executing and managing DevOps on your Python projects in your Python virtual environments.
 
 
 fundamental shell execution helpers
@@ -88,17 +87,6 @@ git command constants and types
 - :data:`GitRemotesType`: the type hint for a dictionary of Git remotes.
 
 
-pip command helpers
--------------------
-
-this section groups the helpers for executing Pip commands within a project's virtual environment.
-
-- :func:`pip_freeze`: executes `pip freeze` to list all installed packages.
-- :func:`pip_install`: executes `pip install` to install packages.
-- :func:`pip_show`: executes `pip show` to get detailed information about a package.
-- :func:`pip_versions`: determines the available versions of a package from PyPI.
-
-
 virtual environment helpers
 ---------------------------
 
@@ -114,10 +102,10 @@ these helper functions are provided to assist with the management of Python virt
 
 the following example installs the required packages of a project into its local virtual environment by
 using the :func:`in_prj_dir_venv` context manager together with the shell execution function :func:`sh_exec`
-and the constant :data:`~aedev.base.PIP_INSTALL_CMD`::
+and the constant :data:`~aedev.base.PIP_CMD` (which differs depending on your OS)::
 
     with in_prj_dir_venv(project_root_path):
-        sh_err = sh_exec(PIP_INSTALL_CMD + "-r requirements.txt")
+        sh_err = sh_exec(PIP_CMD + " install -r requirements.txt")
 """
 # pylint: disable=too-many-lines
 import os
@@ -125,9 +113,10 @@ import sys
 import tempfile
 
 from ast import literal_eval
+from collections.abc import Callable, Iterable, Iterator
 from contextlib import contextmanager
 from urllib.parse import urlparse
-from typing import Any, Callable, Iterable, Iterator, Optional, cast
+from typing import Any, cast
 
 from ae.base import (                                                                                   # type: ignore
     DEF_PROJECT_PARENT_FOLDER, UNSET, UnsetType,
@@ -139,7 +128,7 @@ from ae.shell import STDERR_BEG_MARKER, hint, in_os_env, mask_token, sh_exec, sh
 from aedev.base import COMMIT_MSG_FILE_NAME, DEF_MAIN_BRANCH, PIP_CMD                                   # type: ignore
 
 
-__version__ = '0.3.13'
+__version__ = '0.3.14'
 
 
 EXEC_GIT_ERR_PREFIX = "sh_exec() returned error "       #: used by sh_exit_if_exec_err to mark error in 1st output line
@@ -152,7 +141,7 @@ GIT_RELEASE_REF_PREFIX = 'release'                      #: git repository releas
 GIT_VERSION_TAG_PREFIX = 'v'                            #: git repository version tag prefix
 
 PIP_EDITABLE_PROJECT_PATH_PREFIX = 'Editable project location: '
-""" caption/field-name of the console output of the pip show command. """
+""" caption/field-name of the console output of the `pip show` command. """
 
 SHELL_LOG_FILE_NAME_SUFFIX = "_sh.log"                  #: default file name (suffix) of the shell log file
 
@@ -163,7 +152,7 @@ GitRemotesType = dict[str, str]                         #: git remote urls dict 
 # helper functions ----------------------------------------------------------------------------------------------------
 
 
-def activate_venv(name: str = "", app_obj: Optional[AppBase] = None) -> str:
+def activate_venv(name: str = "", app_obj: AppBase | None = None) -> str:
     """ ensure to activate a virtual environment if it is different to the current one (the one on Python/app start).
 
     :param name:                the name of the venv to activate. if this arg is empty or not specified, then the venv
@@ -628,7 +617,7 @@ def git_ref_in_branch(project_path: str, ref: str, branch: str = f'{GIT_REMOTE_O
 
 def git_remote_domain_group(project_path: str,
                             origin_name: str = GIT_REMOTE_ORIGIN, upstream_name: str = GIT_REMOTE_UPSTREAM,
-                            remote_urls: Optional[GitRemotesType] = None) -> tuple[str, str]:
+                            remote_urls: GitRemotesType | None = None) -> tuple[str, str]:
     """ determine the domain and the repository owner group-/user-name from the git remote configuration (.git/config).
 
     :param project_path:        path to the project root folder of the repository.
@@ -669,7 +658,7 @@ def git_remotes(project_path: str) -> GitRemotesType:
 # pylint: disable-next=too-many-arguments,too-many-positional-arguments
 def git_renew_remotes(project_path: str, origin_url: str, upstream_url: str = "",
                       origin_name: str = GIT_REMOTE_ORIGIN, upstream_name: str = GIT_REMOTE_UPSTREAM,
-                      remotes: Optional[GitRemotesType] = None) -> list[str]:
+                      remotes: GitRemotesType | None = None) -> list[str]:
     """ renew the origin remote and optionally (if repo is forked) also the upstream remote.
 
     :param project_path:        project root folder.
@@ -870,8 +859,8 @@ def owner_project_from_url(remote_url: str) -> str:
 
 # pylint: disable-next=too-many-arguments,too-many-positional-arguments,too-many-locals
 def sh_exit_if_git_err(err_code: int, command_line: str,
-                       extra_args: Iterable[str] = (), lines_output: Optional[list[str]] = None,
-                       exit_on_err: bool = False, app_obj: Optional[ConsoleApp] = None, log_enable_dir: str = ""
+                       extra_args: Iterable[str] = (), lines_output: list[str] | None = None,
+                       exit_on_err: bool = False, app_obj: ConsoleApp | None = None, log_enable_dir: str = ""
                        ) -> list[str]:
     """ execute git command with optional git trace output, returning the stdout lines cleaned from any trace messages.
 
@@ -1005,7 +994,7 @@ def venv_bin_path(venv_name: str = "") -> str:
 
                                 .. note::
                                     under Windows/win32 the base name of the returned path is 'Scripts' (not 'bin'), and
-                                    the executables have a file extension (e.g., pip.exe, activate.bat, python.exe).
+                                    some executables may have a file extension (e.g., activate.bat and python.exe).
                                     ensures "/" path separators to work properly in WSL/bash-emulation under MS Windows.
     """
     venv_root = os.getenv('PYENV_ROOT')
