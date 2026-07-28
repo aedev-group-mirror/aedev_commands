@@ -108,6 +108,7 @@ and the constant :data:`~aedev.base.PIP_CMD` (which differs depending on your OS
         sh_err = sh_exec(PIP_CMD + " install -r requirements.txt")
 """
 # pylint: disable=too-many-lines
+import json
 import os
 import sys
 import tempfile
@@ -122,13 +123,14 @@ from ae.base import (                                                           
     DEF_PROJECT_PARENT_FOLDER, UNSET, UnsetType,
     dummy_function, extend_file, in_wd, norm_path, now_str, os_path_isdir, os_path_isfile, os_path_join,
     read_file, write_file)
+from ae.system import norm_pip_name                                                                     # type: ignore
 from ae.core import main_app_instance, temp_context_get_or_create, AppBase                              # type: ignore
 from ae.console import ConsoleApp                                                                       # type: ignore
 from ae.shell import STDERR_BEG_MARKER, hint, in_os_env, mask_token, sh_exec, sh_exit_if_exec_err       # type: ignore
 from aedev.base import COMMIT_MSG_FILE_NAME, DEF_MAIN_BRANCH, PIP_CMD                                   # type: ignore
 
 
-__version__ = '0.3.14'
+__version__ = '0.3.15'
 
 
 EXEC_GIT_ERR_PREFIX = "sh_exec() returned error "       #: used by sh_exit_if_exec_err to mark error in 1st output line
@@ -855,6 +857,52 @@ def owner_project_from_url(remote_url: str) -> str:
     if url_path.endswith(".git"):
         url_path = url_path[:-4]
     return url_path
+
+
+def pip_install(project_path: str, *required_projects: str, cooldown_period: str = "", dry_run: bool = False,
+                force_reinstall: bool = False, return_implicits: bool = False) -> dict[str, dict[str, bool | str]]:
+    """ install or check/find outdated external Python projects/distributions required by a Python project.
+
+    :param project_path:        path to the project root folder for which the requirements will get installed/checked.
+    :param required_projects:   list of required project names with optional project version numbers (separated by one
+                                of the comparison operators supported by pip, like e.g.
+                                :data:`~aedev.base.PROJECT_VERSION_SEP`).
+    :param cooldown_period:     either ISO 8601 datetime (e.g., '2023-01-01T00:00:00Z') or number of days (e.g., 'P6D'
+                                for uploaded at least 6 days ago).
+    :param dry_run:             pass True to only check which (outdated) external Python projects would get installed.
+    :param force_reinstall:     pass True to force the reinstallation of the required/outdated project versions.
+    :param return_implicits:    pass True to return also implicit installed Python projects as comments.
+    :return:                    dict of installed/outdated projects, with their normalized pip name as keys
+                                and another/inner dict as values. the inner dict provides a "version" key
+                                with the installed/found version as value. if True got specified for the
+                                :paramref:`~pip_install.return_implicits` argument, then also a "requested" key
+                                will be available in the inner dict with a boolean value, which is True for
+                                explicit installed/requiered projects and False for implicit ones.
+    """
+    args = ["--upgrade", "--quiet", "--report=-"]
+    if cooldown_period:
+        # ISO 8601 datetime (e.g., '2023-01-01T00:00:00Z') or period (e.g., 'P6D' for uploaded at least 6 days ago)
+        # using this option with "pip list" needs pip version >= 26.1.3 (issue #14189 created, will be fixed w/ #14190)
+        args.append(f"--uploaded-prior-to={cooldown_period}")
+    if dry_run:
+        args.append("--dry-run")
+    if force_reinstall:
+        args.append("--force-reinstall")
+
+    out: list[str] = [""]   # "" prevents that sh_exec() is adding dependency conflicts warnings from stderr
+    with in_prj_dir_venv(project_path):
+        err = sh_exec(PIP_CMD, extra_args=["install"] + args + list(required_projects), lines_output=out)
+    outdated = {}
+    if err == 0 and out:
+        for item in json.loads(" ".join(out)).get("install", []):
+            metadata = item["metadata"]
+            requested = item["requested"]
+            if requested or return_implicits:
+                outdated[name := norm_pip_name(metadata["name"])] = {"version": metadata["version"]}
+                if return_implicits:
+                    outdated[name]["requested"] = requested
+
+    return outdated
 
 
 # pylint: disable-next=too-many-arguments,too-many-positional-arguments,too-many-locals
