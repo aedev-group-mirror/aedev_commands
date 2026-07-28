@@ -39,7 +39,7 @@ from aedev.commands import (
     git_current_branch, git_diff, git_fetch, git_init_if_needed, git_merge, git_push, git_ref_in_branch,
     git_remote_domain_group, git_remotes, git_renew_remotes,
     git_status, git_tag_add, git_tag_list, git_tag_remotes, git_uncommitted,
-    in_prj_dir_venv, in_venv, owner_project_from_url, sh_exit_if_git_err, sh_log, sh_logs,
+    in_prj_dir_venv, in_venv, owner_project_from_url, pip_install, sh_exit_if_git_err, sh_log, sh_logs,
     venv_bin_path, venv_module_var_val)
 
 
@@ -1379,6 +1379,38 @@ class TestHelpers:
         assert owner_project_from_url("//domain.org/owner/project.git") == "owner/project"
         assert owner_project_from_url("https://domain.org/owner/project.git") == "owner/project"
         assert owner_project_from_url("https://user:password@domain.org/owner/project.git") == "owner/project"
+
+    def test_pip_install(self, changed_repo_path):
+        ret = pip_install(changed_repo_path, "ae_base",
+                          cooldown_period="P0D", dry_run=True, force_reinstall=True, return_implicits=True)
+
+        assert ret
+        assert isinstance(ret, dict)
+        assert len(ret) == 1
+
+        assert all(isinstance(_, dict) for _ in ret.values())
+        assert all("version" in _ for _ in ret.values())
+        assert all("requested" in _ for _ in ret.values())
+        assert len([_ for _ in ret.values() if _["requested"] is True]) == 1
+
+    def test_pip_install_multiple_projects(self, empty_repo_path):
+        ret = pip_install(empty_repo_path, "ae_base", "ae_shell",
+                          cooldown_period="P0D", dry_run=True, force_reinstall=True, return_implicits=True)
+
+        assert ret
+        assert isinstance(ret, dict)
+        assert len(ret) > 2
+
+        assert all(isinstance(_, dict) for _ in ret.values())
+        assert all("version" in _ for _ in ret.values())
+        assert all("requested" in _ for _ in ret.values())
+        assert len([_ for _ in ret.values() if _["requested"] is True]) == 2
+
+    def test_pip_install_no_reqs_error(self, empty_repo_path):
+        ret = pip_install(empty_repo_path)
+
+        assert not ret
+        assert isinstance(ret, dict)
 
 
 class TestShellExecuteAndLogging:
