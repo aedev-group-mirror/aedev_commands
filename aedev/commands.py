@@ -130,7 +130,7 @@ from ae.shell import STDERR_BEG_MARKER, hint, in_os_env, mask_token, sh_exec, sh
 from aedev.base import COMMIT_MSG_FILE_NAME, DEF_MAIN_BRANCH, PIP_CMD                                   # type: ignore
 
 
-__version__ = '0.3.15'
+__version__ = '0.3.16'
 
 
 EXEC_GIT_ERR_PREFIX = "sh_exec() returned error "       #: used by sh_exit_if_exec_err to mark error in 1st output line
@@ -882,7 +882,7 @@ def pip_install(project_path: str, *required_projects: str, cooldown_period: str
     args = ["--upgrade", "--quiet", "--report=-"]
     if cooldown_period:
         # ISO 8601 datetime (e.g., '2023-01-01T00:00:00Z') or period (e.g., 'P6D' for uploaded at least 6 days ago)
-        # using this option with "pip list" needs pip version >= 26.1.3 (issue #14189 created, will be fixed w/ #14190)
+        # using this option with "pip list" needs version>26.1.2 (issue #14189 created, will be fixed w/ #14190/v26.2)
         args.append(f"--uploaded-prior-to={cooldown_period}")
     if dry_run:
         args.append("--dry-run")
@@ -935,7 +935,7 @@ def sh_exit_if_git_err(err_code: int, command_line: str,
         lines_output = []
 
     app_obj = app_obj or cast(ConsoleApp, main_app_instance())
-    git_debug = not app_obj or app_obj.verbose
+    git_debug = app_obj and app_obj.verbose
     print_out = app_obj.po if app_obj else dummy_function if app_obj is UNSET else print
     debug_out = app_obj.vpo if app_obj else dummy_function if app_obj is UNSET else print
     git_trace_vars = ('GIT_TRACE', 'GIT_TRACE_PACK_ACCESS', 'GIT_TRACE_PACKET', 'GIT_TRACE_SETUP')

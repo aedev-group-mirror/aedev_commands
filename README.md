@@ -1,12 +1,12 @@
 <!-- THIS FILE IS EXCLUSIVELY MAINTAINED by the project aedev.aedev v0.3.33 -->
 <!-- THIS FILE IS EXCLUSIVELY MAINTAINED by the project aedev.namespace_root_tpls vlocal -->
-# commands 0.3.15
+# commands 0.3.16
 
 [![GitLab develop](https://img.shields.io/gitlab/pipeline/aedev-group/aedev_commands/develop?logo=python)](
     https://gitlab.com/aedev-group/aedev_commands)
 [![LatestPyPIrelease](
-    https://img.shields.io/gitlab/pipeline/aedev-group/aedev_commands/release0.3.15?logo=python)](
-    https://gitlab.com/aedev-group/aedev_commands/-/tree/release0.3.15)
+    https://img.shields.io/gitlab/pipeline/aedev-group/aedev_commands/release0.3.16?logo=python)](
+    https://gitlab.com/aedev-group/aedev_commands/-/tree/release0.3.16)
 [![PyPIVersions](https://img.shields.io/pypi/v/aedev_commands)](
     https://pypi.org/project/aedev-commands/#history)
 
