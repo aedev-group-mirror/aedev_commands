@@ -130,7 +130,7 @@ from ae.shell import STDERR_BEG_MARKER, hint, in_os_env, mask_token, sh_exec, sh
 from aedev.base import COMMIT_MSG_FILE_NAME, DEF_MAIN_BRANCH, PIP_CMD                                   # type: ignore
 
 
-__version__ = '0.3.16'
+__version__ = '0.3.17'
 
 
 EXEC_GIT_ERR_PREFIX = "sh_exec() returned error "       #: used by sh_exit_if_exec_err to mark error in 1st output line
@@ -879,7 +879,8 @@ def pip_install(project_path: str, *required_projects: str, cooldown_period: str
                                 will be available in the inner dict with a boolean value, which is True for
                                 explicit installed/requiered projects and False for implicit ones.
     """
-    args = ["--upgrade", "--quiet", "--report=-"]
+    args = ["--upgrade", "--quiet", "--report=-",
+            "--root-user-action=ignore"]  # removes@CI "WARNING: Running pip as the 'root' user" on json-console-output
     if cooldown_period:
         # ISO 8601 datetime (e.g., '2023-01-01T00:00:00Z') or period (e.g., 'P6D' for uploaded at least 6 days ago)
         # using this option with "pip list" needs version>26.1.2 (issue #14189 created, will be fixed w/ #14190/v26.2)

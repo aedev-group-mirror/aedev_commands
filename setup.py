@@ -1,4 +1,4 @@
-# THIS FILE IS EXCLUSIVELY MAINTAINED by the project aedev.project_tpls v0.3.92
+# THIS FILE IS EXCLUSIVELY MAINTAINED by the project aedev.project_tpls v0.3.102
 """ setup of aedev namespace module portion commands: software development operation commands helpers. """
 import pathlib
 import sys
@@ -80,7 +80,7 @@ setup_kwargs: dict[str, Any] = {
     },
     'python_requires': '>=3.12',
     'url': 'https://gitlab.com/aedev-group/aedev_commands',
-    'version': '0.3.16',
+    'version': '0.3.17',
     'zip_safe': True,
 }
 
