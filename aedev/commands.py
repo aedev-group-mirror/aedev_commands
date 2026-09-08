@@ -16,10 +16,10 @@ the logging of executed command lines and their console output is highly useful 
 purposes. this portion provides the following helper functions to implement logging for external commands.
 logging gets automatically enabled, if the corresponding log file exists.
 
-- :func:`sh_log`: writes a single command execution log entry.
-- :func:`sh_logs`: determines the file paths of the currently existing/enabled log files.
+* :func:`sh_log`: writes a single command execution log entry.
+* :func:`sh_logs`: determines the file paths of the currently existing/enabled log files.
 
-- :data:`SHELL_LOG_FILE_NAME_SUFFIX`: the default filename suffix for shell command log files.
+* :data:`SHELL_LOG_FILE_NAME_SUFFIX`: the default filename suffix for shell command log files.
 
 .. hint::
     this feature is implemented in :func:`sh_exit_if_git_err` for all the git command execution helpers (``git_*()``)
@@ -44,47 +44,54 @@ extensive debugging using the `GIT TRACE <https://git-scm.com/docs/api-trace>`__
 will be activating if your app based on :mod:`~ae.console.ConsoleApp` got executed with
 the --debug_level/-D option specified.
 
-- :func:`bytes_file_diff`: returns the differences between a byte buffer and a file, using the `git diff` command.
-- :func:`check_commit_msg_file`: checks for the existence of a Git commit message file.
-- :func:`git_add`: executes the `git add` command to stage changes.
-- :func:`git_any`: executes any generic Git command.
-- :func:`git_branches`: determines branch names in a Git repository.
-- :func:`git_branch_files`: finds added, changed, or deleted files on a specified branch.
-- :func:`git_branch_is_dirty`: checks if a Git branch has uncommitted or unstaged changes.
-- :func:`git_checkout`: executes the `git checkout` command to switch branches.
-- :func:`git_clean`: executes the `git clean` command to remove untracked files.
-- :func:`git_commit`: executes the `git commit` command.
-- :func:`git_commit_files_count`: determines the number of changed files in the last commit.
-- :func:`git_config`: executes the `git config` command.
-- :func:`git_conflicts`: lists any merge conflicts in the repository.
-- :func:`git_describe`: executes the `git describe` command.
-- :func:`git_fetch`: executes the `git fetch` command.
-- :func:`git_init_branch`: initializes a new Git branch.
-- :func:`git_is_clean`: checks if the repository has a clean working directory (no untracked or
-  uncommitted files).
-- :func:`git_log_last_commit_date`: determines the date of the last commit.
-- :func:`git_pull`: executes the `git pull` command.
-- :func:`git_push`: executes the `git push` command.
-- :func:`git_remotes`: retrieves the remote URLs of the repository.
-- :func:`git_repo_is_init`: checks if a project directory contains a Git repository.
-- :func:`git_tags`: lists the Git tags.
-- :func:`git_uncommitted`: lists all uncommitted files.
-- :func:`git_user_email`: retrieves the Git user's email.
-- :func:`git_user_name`: retrieves the Git user's name.
-- :func:`git_version_tag`: determines the current version tag of the repository.
-
+* :func:`bytes_file_diff`: returns the differences between a byte buffer and a file, using the `git diff` command.
+* :func:`check_commit_msg_file`: checks for the existence of a Git commit message file.
+* :func:`editable_project_root_path`: determine the project path of a project package installed as editable.
+* :func:`git_add`: executes the `git add` command to stage changes.
+* :func:`git_any`: executes any generic Git command.
+* :func:`git_branches`: determines branch names in a Git repository.
+* :func:`git_branch_files`: finds added, changed, or deleted files on a specified branch.
+* :func:`git_branch_remotes`: return the remote names where the specified branch name exists.
+* :func:`git_checkout`: executes the `git checkout` command to switch branches.
+* :func:`git_clone`: clone a git remote repository from a repository hoster onto your local machine.
+* :func:`git_commit`: executes the `git commit` command.
+* :func:`git_current_branch`: determine the currently checked-out branch of the specified git repository/project.
+* :func:`git_diff`: determine the uncommited/unstaged changes of the specified git repository/project.
+* :func:`git_fetch`: executes the `git fetch` command.
+* :func:`git_init_if_needed`: check and create a git repository if already not exists in the specified project.
+* :func:`git_merge`: merge current worktree with the specified [remote/]branch (exit app if an error occurred).
+* :func:`git_push`: executes the `git push` command.
+* :func:`git_ref_in_branch`: check if branch/tag/ref is in the specified branch.
+* :func:`git_remote_domain_group: determine the domain and the repository owner group-/user-name from .git/config.
+* :func:`git_remotes`: retrieves the remote URLs of the repository.
+* :func:`git_renew_remotes`: renew the origin remote and optionally (if repo is forked) also the upstream remote.
+* :func:`git_status`: get the status of the project repository.
+* :func:`git_tag_add`: add a new tag onto the project in the specified project root path.
+* :func:`git_tag_list`: determine a list of matching tags of a local or remote git repository.
+* :func:`git_tag_remotes`: return the remote names where the specified tag name exists.
+* :func:`git_uncommitted`: lists all uncommitted files.
+* :func:`git_user_email`: retrieves the Git user's email.
+* :func:`git_user_name`: retrieves the Git user's name.
+* :func:`git_version_tag`: determines the current version tag of the repository.
+* :func:`owner_project_from_url`: determine the project path, including owner and project name from the remote url.
 
 git command constants and types
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-- :data:`EXEC_GIT_ERR_PREFIX`: the prefix used to mark Git execution errors.
-- :data:`GIT_CLONE_CACHE_CONTEXT`: the temporary folder context identifier used for Git clone downloads.
-- :data:`GIT_FOLDER_NAME`: the default name of the Git-internal subfolder.
-- :data:`GIT_REMOTE_ORIGIN`: the default name for the origin remote.
-- :data:`GIT_REMOTE_UPSTREAM`: the default name for the upstream remote.
-- :data:`GIT_RELEASE_REF_PREFIX`: the default prefix, used for release branches.
-- :data:`GIT_VERSION_TAG_PREFIX`: the default prefix, used for version tags.
-- :data:`GitRemotesType`: the type hint for a dictionary of Git remotes.
+* :data:`EXEC_GIT_ERR_PREFIX`: the prefix used to mark Git execution errors.
+* :data:`GIT_CLONE_CACHE_CONTEXT`: the temporary folder context identifier used for Git clone downloads.
+* :data:`GIT_FOLDER_NAME`: the default name of the Git-internal subfolder.
+* :data:`GIT_REMOTE_ORIGIN`: the default name for the origin remote.
+* :data:`GIT_REMOTE_UPSTREAM`: the default name for the upstream remote.
+* :data:`GIT_RELEASE_REF_PREFIX`: the default prefix, used for release branches.
+* :data:`GIT_VERSION_TAG_PREFIX`: the default prefix, used for version tags.
+* :data:`GitRemotesType`: the type hint for a dictionary of Git remotes.
+
+
+pip command helpers
+-------------------
+
+* :func:`pip_install`: install/check/find outdated external Python projects/distributions required by a Python project.
 
 
 virtual environment helpers
@@ -92,13 +99,16 @@ virtual environment helpers
 
 these helper functions are provided to assist with the management of Python virtual environments.
 
-- :func:`activate_venv`: ensures that a virtual environment is activated if it's different from the
-  current one.
-- :func:`active_venv`: determines the name of the currently active virtual environment.
-- :func:`in_prj_dir_venv`: a context manager that temporarily changes the working directory and activates
+* :func:`in_prj_dir_venv`: a context manager that temporarily changes the working directory and activates
   the project's virtual environment.
-- :func:`venv_bin_path`: determines the bin/scripts path of a virtual environment.
-- :func:`venv_project_path`: finds the project root path associated with a virtual environment.
+* :func:`in_venv`: set the VENV OS environment variables in :attr:`os.environ` via a patched dict within the context.
+* :func:`venv_bin_path`: determines the bin/scripts path of a Python virtual environment.
+* :func:`venv_check_prefixes`: determine the possible VENV root/prefix paths of all the supported VENV systems.
+* :func:`venv_module_var_val`: determine a variable value declared in a Python module, installed in any other VENV.
+* :func:`venv_name: determine the name/id of the current VENV used by a project.
+* :func:`venv_os_env_vars`: returns the OS environment variables of a VENV (Python virtual environment).
+* :func:`venv_sh_exec_kwargs: determine the :func:`sh_exec`-kwargs to set/switch the OS-env vars of a VENV.
+
 
 the following example installs the required packages of a project into its local virtual environment by
 using the :func:`in_prj_dir_venv` context manager together with the shell execution function :func:`sh_exec`
@@ -110,6 +120,8 @@ and the constant :data:`~aedev.base.PIP_CMD` (which differs depending on your OS
 # pylint: disable=too-many-lines
 import json
 import os
+import shlex
+import subprocess
 import sys
 import tempfile
 
@@ -121,16 +133,19 @@ from typing import Any, cast
 
 from ae.base import (                                                                                   # type: ignore
     DEF_PROJECT_PARENT_FOLDER, UNSET, UnsetType,
-    dummy_function, extend_file, in_wd, norm_path, now_str, os_path_isdir, os_path_isfile, os_path_join,
+    dummy_function, extend_file, in_wd, norm_path, now_str,
+    os_path_basename, os_path_dirname, os_path_expanduser, os_path_isdir, os_path_isfile, os_path_join,
     read_file, write_file)
-from ae.system import norm_pip_name                                                                     # type: ignore
+from ae.system import norm_pip_name, os_env_venv, venv_prefix                                           # type: ignore
+from ae.paths import path_folders                                                                       # type: ignore
 from ae.core import main_app_instance, temp_context_get_or_create, AppBase                              # type: ignore
 from ae.console import ConsoleApp                                                                       # type: ignore
-from ae.shell import STDERR_BEG_MARKER, hint, in_os_env, mask_token, sh_exec, sh_exit_if_exec_err       # type: ignore
+from ae.shell import (                                                                                  # type: ignore
+    STDERR_BEG_MARKER, hint, in_os_env, mask_token, output_zero_split, sh_exec, sh_exit_if_exec_err)
 from aedev.base import COMMIT_MSG_FILE_NAME, DEF_MAIN_BRANCH, PIP_CMD                                   # type: ignore
 
 
-__version__ = '0.3.17'
+__version__ = '0.3.18'
 
 
 EXEC_GIT_ERR_PREFIX = "sh_exec() returned error "       #: used by sh_exit_if_exec_err to mark error in 1st output line
@@ -147,6 +162,9 @@ PIP_EDITABLE_PROJECT_PATH_PREFIX = 'Editable project location: '
 
 SHELL_LOG_FILE_NAME_SUFFIX = "_sh.log"                  #: default file name (suffix) of the shell log file
 
+VENV_SUB_DIR_NAMES = ('.venv/', 'venv/', 'env/', '.env/')  #: recognized folder names of a project-local VENV
+VENV_ID_SEARCH_DEPTH = 3                                #: number of folders to climb up to find a projects VENV name/id
+
 # types ---------------------------------------------------------------------------------------------------------------
 
 GitRemotesType = dict[str, str]                         #: git remote urls dict with keys like 'origin' / 'upstream'
@@ -154,67 +172,13 @@ GitRemotesType = dict[str, str]                         #: git remote urls dict 
 # helper functions ----------------------------------------------------------------------------------------------------
 
 
-def activate_venv(name: str = "", app_obj: AppBase | None = None) -> str:
-    """ ensure to activate a virtual environment if it is different to the current one (the one on Python/app start).
-
-    :param name:                the name of the venv to activate. if this arg is empty or not specified, then the venv
-                                of the project in the current working directory tree will be activated.
-    :param app_obj:             optional :class:`~ae.core.AppBase`/:class:`~ae.console.ConsoleApp` instance, used for
-                                logging/console output.
-    :return:                    the name of the previously active venv
-                                or an empty string if the requested or no venv was active, or if venv is not supported.
-    """
-    app_obj = app_obj or main_app_instance()        # only for console outputs
-    old_name = active_venv()
-    bin_path = venv_bin_path(name)
-    if not bin_path:
-        if app_obj:
-            if name and old_name:
-                app_obj.dpo(f"    * the venv '{name}' does not exists - skipping switch from current venv '{old_name}'")
-            else:
-                app_obj.vpo(f"    # venv {name=} activation skipped {os.getcwd()=} {old_name=} {bin_path=}")
-        return ""
-
-    activate_script_path = os_path_join(bin_path, 'activate')
-    if not os_path_isfile(activate_script_path):
-        if app_obj:
-            app_obj.po(f"    * skipping venv activation, because activate script '{activate_script_path}' not found")
-        return ""
-
-    new_name = bin_path.split("/")[-2]
-    if old_name == new_name:
-        if app_obj:
-            app_obj.vpo(f"    _ skipped activation of venv '{new_name}' because it is already activated")
-        return ""
-
-    if app_obj:
-        app_obj.dpo(f"    - activating venv: switching from current venv '{old_name}' to '{new_name}'")
-    output: list[str] = []    # venv activation command line inspired by https://stackoverflow.com/questions/7040592
-    sh_exit_if_exec_err(323, f"env -i bash -c 'set -a && source {activate_script_path} && env -0'",
-                        lines_output=output, shell=True)
-    if output and "\0" in output[0]:      # fix error for APP_PRJ (e.g. kivy_lisz)
-        os.environ.update(line.split("=", maxsplit=1) for line in output[0].split("\0"))   # type: ignore
-
-    return old_name
-
-
-def active_venv() -> str:
-    """ determine the virtual environment that is currently active.
-
-    .. hint:: the current venv gets set via `data:`os.environ` on start of this Python app or by :func:`activate_venv`.
-
-    :return:                    the name of the currently active venv.
-    """
-    return norm_path(os.getenv('VIRTUAL_ENV', "")).split("/")[-1]   # normalize path for bash-emulation under MS Windows
-
-
 def bytes_file_diff(file_content: bytes, file_path: str, line_sep: str = os.linesep) -> str:
     """ return the differences between the content of a file against the specified file content buffer.
 
     :param file_content:        older file bytes to be compared against the file content of the file specified by the
-                                :paramref:`~bytes_file_diff.file_path` argument.
+                                :paramref:`.file_path` argument.
     :param file_path:           path to the file of which newer content gets compared against the file bytes specified
-                                by the :paramref:`~bytes_file_diff.file_content` argument.
+                                by the :paramref:`.file_content` argument.
     :param line_sep:            string used to prefix, separate and indent the lines in the returned output string.
     :return:                    differences between the two file contents, compiled with the `git diff` command.
     """
@@ -235,7 +199,7 @@ def check_commit_msg_file(project_path: str, *hint_args, commit_msg_file: str = 
 
     :param project_path:        project root path.
     :param hint_args:           hint arguments.
-    :param commit_msg_file:     name of the git commit message file (def=COMMIT_MSG_FILE_NAME).
+    :param commit_msg_file:     name of the git commit message file (default=:data:`aedev.base.COMMIT_MSG_FILE_NAME`).
     :return:                    the path of the git commit message file of this project.
     :raises:                    FileNotFoundError|shutdown if the commit message file is not readable or does not exist.
     """
@@ -256,7 +220,7 @@ def editable_project_root_path(project_name: str) -> str:
                                 or empty string, if the package is not installed as editable.
     """
     output: list[str] = []
-    if sh_exec(PIP_CMD, extra_args=("show", project_name), lines_output=output) == 0:
+    if sh_exec(PIP_CMD, extra_args=("show", project_name), output_lines=output) == 0:
         for line in output:
             if line.startswith(PIP_EDITABLE_PROJECT_PATH_PREFIX):
                 return line[len(PIP_EDITABLE_PROJECT_PATH_PREFIX):]
@@ -314,11 +278,11 @@ def git_branch_files(project_path: str, branch_or_tag: str = DEF_MAIN_BRANCH, un
     :param branch_or_tag:       branch(es)/tag(s)/commit(s) passed to `git diff <https://git-scm.com/docs/git-diff>`__
                                 to specify the changed files between version(s).
     :param skip_file_path:      called for each found file passing the file path relative to the project root folder
-                                (specified by the :paramref:`~find_git_branch_files.project_path` argument), returning
+                                (specified by the :paramref:`.project_path` argument), returning
                                 True to exclude/skip the file with passed file path.
     :param untracked:           pass True to include untracked files from the returned result set.
     :return:                    set of file paths relative to worktree root specified by the project root path
-                                specified by the :paramref:`~find_git_branch_files.project_path` argument.
+                                specified by the :paramref:`.project_path` argument.
 
     .. hint:: see also func:`git_uncommitted` and the unit tests for the differences between them.
     """
@@ -440,8 +404,8 @@ def git_commit(project_path: str, project_version: str, *extra_args: str,
                                 e.g., ["--patch", "--dry-run"]. except from the --file option, which will be added
                                 by this function with the name of the git commit message file.
     :param commit_msg_text:     used commit message. if specified then the argument
-                                in :paramref:`~git_commit.commit_msg_file` will be ignored.
-    :param commit_msg_file:     name of the git commit message file (def=:data:`COMMIT_MSG_FILE_NAME`).
+                                in :paramref:`.commit_msg_file` will be ignored.
+    :param commit_msg_file:     name of the git commit message file (default=:data:`aedev.base.COMMIT_MSG_FILE_NAME`).
     """
     if commit_msg_text:
         args = ["--message", commit_msg_text]
@@ -458,7 +422,7 @@ def git_commit(project_path: str, project_version: str, *extra_args: str,
 
 
 def git_current_branch(project_path: str) -> str:
-    """ determine the currently checked-out branch of the specified git repository.
+    """ determine the currently checked-out branch of the specified git repository/project.
 
     :param project_path:        project root folder of the git repo.
     :return:                    name of the current branch, or an empty string if no branch is checked out.
@@ -472,7 +436,7 @@ def git_current_branch(project_path: str) -> str:
 
 
 def git_diff(project_path: str, *extra_args: str) -> list[str]:
-    """ determine the uncommited/unstaged changes of a git project-
+    """ determine the uncommited/unstaged changes of the specified git repository/project.
 
     :param project_path:        project root folder.
     :param extra_args:          additional options and refs passed onto the git diff command, apart from the
@@ -513,7 +477,7 @@ def git_init_if_needed(project_path: str,
     :param author:              author of the project/repo added to git config (if specified).
     :param email:               email address of the author added to git config (if specified).
     :param main_branch:         first main branch name to be checked out if repo did not exist / got created.
-                                if not specified then the module constant :data:`~aedev.base.DEF_MAIN_BRANCH` is used.
+                                if not specified then the value of :data:`aedev.base.DEF_MAIN_BRANCH` is used.
                                 pass empty string to not do the initial checkout on a not existing repository.
     :return:                    boolean True if a new repo got created and initialized, else False.
     """
@@ -544,14 +508,14 @@ def git_merge(project_path: str, from_branch: str, *extra_options: str,
                                 upstream/origin remote name, e.g. "upstream/main_branch").
     :param extra_options:       extra arguments for the git command
     :param commit_msg_text:     commit message used for the optional merge commit. if specified then the argument
-                                in :paramref:`~git_merge.commit_msg_file` will be ignored.
-    :param commit_msg_file:     name of the git commit message file (def=COMMIT_MSG_FILE_NAME).
+                                in :paramref:`.commit_msg_file` will be ignored.
+    :param commit_msg_file:     name of the git commit message file (default=:data:`aedev.base.COMMIT_MSG_FILE_NAME`).
     :param exit_on_err:         specify True to exit the Python app on any git push error.
     :return:                    list with output lines of the git merge command (like returned by the function
                                 :func:`sh_exit_if_git_err`, used to execute this git command).
                                 if the git command returned with an error code and the argument in
-                                :paramref:`~git_merge.exit_on_err` got not specified or as a `True` argument, then
-                                the app will quit. if :paramref:`~git_merge.exit_on_err` got specified as 'False' and
+                                :paramref:`.exit_on_err` got not specified or as a `True` argument, then
+                                the app will quit. if :paramref:`.exit_on_err` got specified as 'False' and
                                 git push returned an error code, then it will be returned in the first line/list-item
                                 (prefixed with :data:`EXEC_GIT_ERR_PREFIX`).
     """
@@ -581,8 +545,8 @@ def git_push(project_path: str, remote_repo_url: str, *options_and_refs: str, ex
     :return:                    list with output lines of the git push command (like returned by the function
                                 :func:`sh_exit_if_git_err`, used to execute this git push command).
                                 if git push returned with an error code and the argument in
-                                :paramref:`~git_push.exit_on_err` got not specified or as a `True` argument, then
-                                the app will quit. if :paramref:`~git_push.exit_on_err` got specified as 'False' and
+                                :paramref:`.exit_on_err` got not specified or as a `True` argument, then
+                                the app will quit. if :paramref:`.exit_on_err` got specified as 'False' and
                                 git push returned an error code, then it will be returned in the first line/list-item
                                 (prefixed with :data:`EXEC_GIT_ERR_PREFIX`).
     """
@@ -605,9 +569,8 @@ def git_ref_in_branch(project_path: str, ref: str, branch: str = f'{GIT_REMOTE_O
     """ check if branch/tag/ref is in the specified branch.
 
     :param project_path:        project worktree root path.
-    :param ref:                 any ref like a tag or another branch, to be searched within
-                                :paramref:`~_git_ref_in_branch.branch`.
-    :param branch:              branch to be searched in for :paramref:`~_git_ref_in_branch.tag`. if not specified
+    :param ref:                 any ref like a tag or another branch, to be searched within :paramref:`.branch`.
+    :param branch:              branch to be searched in for :paramref:`.ref`. if not specified
                                 then it defaults to the remote/origin main branch.
     :return:                    boolean True if the ref got found in the branch, else False.
     """
@@ -725,12 +688,12 @@ def git_status(project_path: str, verbose: bool = False) -> list[str]:
 
 def git_tag_add(project_path: str, tag: str, commit_msg_text: str = "", commit_msg_file: str = COMMIT_MSG_FILE_NAME
                 ) -> list[str]:
-    """ add a new tag onto the project in the specified project root path
+    """ add a new tag onto the project in the specified project root path.
 
     :param project_path:        project root path.
     :param tag:                 tag to add.
     :param commit_msg_text:     commit message used for the optional merge commit. if specified then the argument
-                                in :paramref:`~git_merge.commit_msg_file` will be ignored.
+                                in :paramref:`.commit_msg_file` will be ignored.
     :param commit_msg_file:     name of the git commit message file (def=COMMIT_MSG_FILE_NAME).
     :return:                    console output of the git tag --annotate command.
     """
@@ -755,17 +718,16 @@ def git_tag_list(project_path: str, remote="", tag_pattern: str = "*") -> list[s
                                 an empty list will be returned if no tag is matching the specified tag pattern
                                 or an error occurred or if the project has no .git folder.
     """
-    output: list[str] = []
     if not os_path_isdir(os_path_join(project_path, GIT_FOLDER_NAME)):
-        return output
+        return []
 
     with in_prj_dir_venv(project_path):
         if remote:
             output = sh_exit_if_git_err(389, "git ls-remote",
                                         extra_args=("--tags", "--refs", "--sort=version:refname", remote, tag_pattern),
                                         exit_on_err=False)
-            if output and (output[0].startswith(EXEC_GIT_ERR_PREFIX) or output[0] == STDERR_BEG_MARKER):
-                output = []                                         # or no stdout but stderr w/ warning: redirecting to
+            if output and output[0].startswith(EXEC_GIT_ERR_PREFIX):
+                output = []                                         # warning directly printed on console stderr
             else:
                 output = [line.split("\t")[-1].split("/")[-1] for line in output]
         else:
@@ -817,31 +779,45 @@ def git_uncommitted(project_path: str) -> set[str]:
 
 
 @contextmanager
-def in_prj_dir_venv(project_path: str = ".", venv_name: str = "") -> Iterator[None]:
-    """ set CWD to the project root, os.environ from .env files and the specified or .python-version-configured venv.
+def in_prj_dir_venv(project_path: str = ".", venv_id: str = "") -> Iterator[None]:
+    """ set CWD to the project root, os.environ from .env files and the specified or .python-version-configured VENV.
 
     :param project_path:        path to the project root folder to switch the current working directory in this context.
                                 using the actual CWD if not specified.
-    :param venv_name:           name of the Python Virtual Environment to activate in this context. if not specified
-                                (or as empty string), then the venv configured via the file .python-version will be
+    :param venv_id:             name/id of the Python Virtual Environment to activate in this context. if not specified
+                                (or as empty string), then the VENV configured via the file .python-version will be
                                 activated.
     :return:
     """
-    with in_wd(project_path), in_os_env(project_path), in_venv(venv_name=venv_name):
+    with in_wd(project_path), in_os_env(project_path), in_venv(venv_id=venv_id):
         yield
 
 
 @contextmanager
-def in_venv(venv_name: str = "") -> Iterator[None]:
-    """ ensure the virtual environment gets activated within the context.
+def in_venv(venv_id: str = "") -> Iterator[None]:
+    """ set the VENV OS environment variables in :attr:`os.environ` via a patched dict within the context.
 
-    :param venv_name:           the name of the venv to activate. if not specified, then the venv of the project in the
+    :param venv_id:             the name of the VENV to activate. if not specified, then the VENV of the project in the
                                 current working directory tree will be activated.
+
+    .. note::
+        changes done within this context on any variable value in :attr:`os.environ` will have no effect on the
+        real/underlying environment variable value of the OS.
     """
-    old_venv = activate_venv(venv_name)
+    if not venv_id:
+        venv_id = venv_name()  # detect current VENV name from the cwd/project_path or above, or from the OS env vars
+
+    env_obj = None
+    curr_id = os_env_venv()
+    if curr_id != venv_id:
+        env_obj = os.environ
+        os.environ = cast(Any, env_obj.copy())  # cast to _Environ
+        os.environ.update(venv_os_env_vars(venv_id))
+
     yield
-    if old_venv:
-        activate_venv(old_venv)
+
+    if env_obj:
+        os.environ = env_obj
 
 
 def owner_project_from_url(remote_url: str) -> str:
@@ -875,7 +851,7 @@ def pip_install(project_path: str, *required_projects: str, cooldown_period: str
     :return:                    dict of installed/outdated projects, with their normalized pip name as keys
                                 and another/inner dict as values. the inner dict provides a "version" key
                                 with the installed/found version as value. if True got specified for the
-                                :paramref:`~pip_install.return_implicits` argument, then also a "requested" key
+                                :paramref:`.return_implicits` argument, then also a "requested" key
                                 will be available in the inner dict with a boolean value, which is True for
                                 explicit installed/requiered projects and False for implicit ones.
     """
@@ -890,9 +866,9 @@ def pip_install(project_path: str, *required_projects: str, cooldown_period: str
     if force_reinstall:
         args.append("--force-reinstall")
 
-    out: list[str] = [""]   # "" prevents that sh_exec() is adding dependency conflicts warnings from stderr
+    out: list[str] = []
     with in_prj_dir_venv(project_path):
-        err = sh_exec(PIP_CMD, extra_args=["install"] + args + list(required_projects), lines_output=out)
+        err = sh_exec(PIP_CMD, extra_args=["install"] + args + list(required_projects), output_lines=out)
     outdated = {}
     if err == 0 and out:
         for item in json.loads(" ".join(out)).get("install", []):
@@ -908,16 +884,15 @@ def pip_install(project_path: str, *required_projects: str, cooldown_period: str
 
 # pylint: disable-next=too-many-arguments,too-many-positional-arguments,too-many-locals
 def sh_exit_if_git_err(err_code: int, command_line: str,
-                       extra_args: Iterable[str] = (), lines_output: list[str] | None = None,
-                       exit_on_err: bool = False, app_obj: ConsoleApp | None = None, log_enable_dir: str = ""
-                       ) -> list[str]:
+                       extra_args: Iterable[str] = (), output_lines: list[str] | None = None, exit_on_err: bool = False,
+                       app_obj: ConsoleApp | UnsetType | None = None, log_enable_dir: str = "") -> list[str]:
     """ execute git command with optional git trace output, returning the stdout lines cleaned from any trace messages.
 
     :param err_code:            error code to pass to the console as exit code if :paramref:`.exit_on_err` is True.
     :param command_line:        command line string to execute on the console/shell. could contain command line args
-                                separated by whitespace characters (alternatively use :paramref:`~sh_exec.extra_args`).
+                                separated by whitespace characters (alternatively use :paramref:`.extra_args`).
     :param extra_args:          optional iterable of extra command line arguments.
-    :param lines_output:        optional list to return the lines printed to stdout/stderr on execution.
+    :param output_lines:        optional list to return the lines printed to stdout/stderr on execution.
                                 by passing an empty list, the stdout and stderr streams/pipes will be separated,
                                 resulting in having the stderr output lines at the end of the list. specify at
                                 least on list item to merge-in the stderr output (into the stdout output and return).
@@ -928,17 +903,17 @@ def sh_exit_if_git_err(err_code: int, command_line: str,
     :param app_obj:             :class:`~ae.console.ConsoleApp` instance, for logging and ignorable-error-checks.
     :param log_enable_dir:      pass the path of the directory in which git shell command logging have to get enabled.
     :return:                    output lines of git command - cleaned from GIT_TRACE messages,
-                                if :paramref:`~sh_exit_if_git_err.exit_on_err` got specified as 'False' and the executed
+                                if :paramref:`.exit_on_err` got specified as 'False' and the executed
                                 git command returned an error code, then the error code will be returned in the first
                                 line/list-item (prefixed with :data:`EXEC_GIT_ERR_PREFIX`).
     """
-    if lines_output is None:
-        lines_output = []
-
-    app_obj = app_obj or cast(ConsoleApp, main_app_instance())
-    git_debug = app_obj and app_obj.verbose
-    print_out = app_obj.po if app_obj else dummy_function if app_obj is UNSET else print
-    debug_out = app_obj.vpo if app_obj else dummy_function if app_obj is UNSET else print
+    if output_lines is None:
+        output_lines = []
+    if app_obj is None:
+        app_obj = cast(ConsoleApp, main_app_instance())
+    git_debug = isinstance(app_obj, AppBase) and app_obj.verbose
+    print_out = dummy_function if app_obj is UNSET else app_obj.po if isinstance(app_obj, ConsoleApp) else print
+    debug_out = dummy_function if app_obj is UNSET else app_obj.vpo if isinstance(app_obj, ConsoleApp) else print
     git_trace_vars = ('GIT_TRACE', 'GIT_TRACE_PACK_ACCESS', 'GIT_TRACE_PACKET', 'GIT_TRACE_SETUP')
     env_vars = {'GIT_TERMINAL_PROMPT': "0"}
     if git_debug:
@@ -948,41 +923,40 @@ def sh_exit_if_git_err(err_code: int, command_line: str,
             env_vars[var] = "1"
 
     cl_err = sh_exit_if_exec_err(err_code, command_line,
-                                 extra_args=extra_args, lines_output=lines_output, exit_on_err=exit_on_err,
-                                 app_obj=app_obj, env_vars={**os.environ, **env_vars})
+                                 extra_args=extra_args, output_lines=output_lines, exit_on_err=exit_on_err,
+                                 app_obj=app_obj, env_vars={**os.environ, **env_vars}, err_redirect=subprocess.PIPE)
 
     if log_files := sh_logs(log_enable_dir=log_enable_dir, log_name_prefix='git'):
-        sh_log(command_line, extra_args=extra_args, cl_err=cl_err, lines_output=lines_output, log_file_paths=log_files)
+        sh_log(command_line, extra_args=extra_args, cl_err=cl_err, output_lines=output_lines, log_file_paths=log_files)
 
     if cl_err:  # if cl_err and exit_on_err then it would have exit the Python interpreter (so never would run to here)
         cmd_line = mask_token([command_line] + list(extra_args))
         debug_out(f"    # ignored error {cl_err} of `{cmd_line}` and git trace {env_vars=}")
-        lines_output.insert(0, EXEC_GIT_ERR_PREFIX + str(cl_err) + f" in {cmd_line}")
+        output_lines.insert(0, EXEC_GIT_ERR_PREFIX + str(cl_err) + f" in {cmd_line}")
 
-    if STDERR_BEG_MARKER in lines_output and (  # output marker only if stderr not got merged/called w/ lines_output==[]
-            git_debug or any(os.environ.get(_, "0") in ("true", "1", "2") for _ in git_trace_vars)):
-        start = lines_output.index(STDERR_BEG_MARKER)
-        if git_debug:  # if not already printed by sh_exit_if_exec_err()
+    start = next((_idx for _idx, _item in enumerate(output_lines) if _item == STDERR_BEG_MARKER), -1)  # lines.find()
+    if start >= 0:
+        if git_debug or any(os.environ.get(_, "0") in ("true", "1", "2") for _ in git_trace_vars):
             sep = " " * 6
             print_out(sep + "git trace output:")
-            for line_no in range(start + 1, len(lines_output) - 1):
-                print_out(sep + lines_output[line_no])
-        lines_output[:] = lines_output[:start]      # del output[start:]
+            for line_no in range(start + 1, len(output_lines) - 1):
+                print_out(sep + output_lines[line_no])
+        output_lines[:] = output_lines[:start]      # remove stderr messages from returned console output
 
-    return list(mask_token(lines_output))
+    return mask_token(output_lines)
 
 
 # pylint: disable-next=too-many-arguments,too-many-positional-arguments
-def sh_log(comment_or_command: str, extra_args: Iterable[str] = (), cl_err: int = 0, lines_output: Iterable[str] = (),
+def sh_log(comment_or_command: str, extra_args: Iterable[str] = (), cl_err: int = 0, output_lines: Iterable[str] = (),
            log_file_paths: Iterable[str] = (), log_name_prefix: str = ""):
     """ append a log entry to each existing/enabled shell command log file.
 
     :param comment_or_command:  command line or comment line (if starts with the # character).
     :param extra_args:          extra arguments (added to the command line).
     :param cl_err:              command exit code.
-    :param lines_output:        console output lines.
+    :param output_lines:        console output lines.
     :param log_file_paths:      log file paths - if specified then the search of the default locations for log files
-                                will be skipped and therefore :paramref:`~sh_log.log_name_prefix` will be ignored.
+                                will be skipped and therefore :paramref:`.log_name_prefix` will be ignored.
     :param log_name_prefix:     log file name prefix. extended with the :data:`SHELL_LOG_FILE_NAME_SUFFIX` results in
                                 the file name to search for (and to log into if exists).
     """
@@ -993,7 +967,7 @@ def sh_log(comment_or_command: str, extra_args: Iterable[str] = (), cl_err: int 
     log_lines = (now_str(sep='-') + sep +
                  comment_or_command + " " + " ".join('"' + _ + '"' if " " in _ else _ for _ in extra_args) + sep +
                  (f" * {cl_err=}" + sep if cl_err else "") +
-                 ("   " + (sep + "   ").join(lines_output) + sep if lines_output else ""))
+                 ("   " + (sep + "   ").join(output_lines) + sep if output_lines else ""))
 
     log_lines = mask_token(log_lines)
 
@@ -1030,64 +1004,98 @@ def sh_logs(log_enable_dir: str = "", log_name_prefix: str = "") -> list[str]:
     return log_files
 
 
-def venv_bin_path(venv_name: str = "") -> str:
-    """ determine the absolute bin/executables folder path of a virtual pyenv environment.
+def venv_bin_path(venv_id: str) -> str:
+    """ determine the absolute bin/executables folder path of the specified, local or active Python virtual environment.
 
-    :param venv_name:           the name of the venv. if not specified, then the venv name will be determined from the
-                                first found ``.python-version`` file, starting in the current working directory (cwd)
-                                and up to 5 parent directories above. if no ``.python-version`` file could be found
-                                then the name of the currently active venv will be used (via the function
-                                :func:`active_venv` respectively the ``VIRTUAL_ENV`` shell environment variable).
-    :return:                    absolute path of the "bin" folder in the specified/determined virtual environment or
-                                an empty string if pyenv is not installed or no venv name or bin folder could be found.
+    :param venv_id:             name/id of the VENV or the name of a project-local VENV sub
+                                folder (with a trailing slash).
+    :return:                    absolute path of the bin/Scripts folder of the specified/determined virtual environment
+                                or an empty string if no VENV could be found with the specified/determined id/name.
 
                                 .. note::
                                     under Windows/win32 the base name of the returned path is 'Scripts' (not 'bin'), and
                                     some executables may have a file extension (e.g., activate.bat and python.exe).
                                     ensures "/" path separators to work properly in WSL/bash-emulation under MS Windows.
     """
-    venv_root = os.getenv('PYENV_ROOT')
-    if not venv_root:   # pyenv is not installed
-        return ""
+    bin_dir = 'Scripts' if sys.platform == 'win32' else 'bin'
+    chk_dirs = venv_check_prefixes(venv_id)
 
-    if not venv_name:
-        loc_env_file = '.python-version'
-        for _ in range(6):
-            if os_path_isfile(loc_env_file):
-                venv_name = read_file(loc_env_file).splitlines()[0]
-                break
-            loc_env_file = ".." + "/" + loc_env_file
-        else:
-            venv_name = active_venv()
-            if not venv_name:
-                return ""
+    for path_parts in chk_dirs:
+        bin_path = os_path_join(*path_parts, bin_dir)
+        if os_path_isdir(bin_path):
+            return norm_path(bin_path)
 
-    bin_path = os_path_join(venv_root, 'versions', venv_name, 'Scripts' if sys.platform == "win32" else 'bin')
-    return bin_path.replace("\\", "/") if os_path_isdir(bin_path) else ""
+    return ""
 
 
-def venv_module_var_val(import_name: str, var_name: str, cwd: str = ".", venv_name: str = "",
+def venv_check_prefixes(venv_id: str) -> list[tuple[str, ...]]:
+    """ determine the possible VENV root/prefix paths of all the supported VENV systems.
+
+    :param venv_id:             name/id of the VENV or the name of a project-local VENV sub
+                                folder (with a trailing slash).
+    :return:                    list of joinable path parts of the possible and supported VENV root/prefix paths.
+    """
+    chk_dirs: list[tuple[str, ...]] = []
+
+    if (env_root := venv_prefix()) and os_path_basename(env_root) == venv_id:
+        chk_dirs.append((env_root, ))                                           # root from VIRTUAL_ENV/CONDA_PREFIX
+
+    if env_root := os.getenv('PYENV_ROOT'):
+        chk_dirs.append((env_root, 'versions', venv_id))                        # pyenv ==os_path_expanduser('~/.pyenv')
+
+    if env_root := os.getenv('WORKON_HOME'):
+        chk_dirs.append((env_root, venv_id))                                    # virtualenvwrapper
+
+    if env_root := os.getenv('CONDA_ROOT'):
+        chk_dirs.append((env_root, 'envs', venv_id))                            # Conda =='~/miniconda3'
+    if env_root := os.getenv('CONDA_ENVS_PATH'):
+        chk_dirs.append((env_root, venv_id))                                    # explicit Conda envs dir
+    if env_root := os.getenv('CONDA_PREFIX'):
+        chk_dirs.append((env_root, venv_id))                                    # derive envs-root from active env
+    chk_dirs.append((os_path_expanduser('~/.conda/envs'), venv_id))
+    chk_dirs.append((os_path_expanduser('~/anaconda3/envs'), venv_id))
+    chk_dirs.append((os_path_expanduser('~/miniconda3/envs'), venv_id))
+    env_root = os.getenv('CONDA_ROOT') or os.getenv('CONDA_PREFIX')
+    if env_root and venv_id in ('anaconda3', 'base', 'miniconda3', os.getenv('CONDA_DEFAULT_ENV')):
+        if os_path_basename(os_path_dirname(env_root)) == 'envs':
+            env_root = os_path_dirname(os_path_dirname(env_root))   # climb to back to root from envs/<venv_id> folder
+        chk_dirs.append((env_root, ))
+
+    cache_dir = (os.path.expandvars('%APPDATA%/pypoetry/virtualenvs') if sys.platform == 'win32' else
+                 os_path_expanduser('~/.cache/pypoetry/virtualenvs'))
+    for path_part in path_folders(os_path_join(cache_dir, venv_id + '*')):
+        chk_dirs.append((path_part, ))  # poetry VENVs get a hash suffix on the VENV id, e.g. "<name>-XXXXXXXX-py3.11"
+
+    for path_part in ((venv_id + "/", ) if venv_id else ()) + VENV_SUB_DIR_NAMES:
+        for _ in range(VENV_ID_SEARCH_DEPTH):
+            chk_dirs.append((path_part, ))               # last fallback: project-local .venv/virtualenv folders
+            path_part = os_path_join("..", path_part)
+
+    return chk_dirs
+
+
+def venv_module_var_val(import_name: str, var_name: str, cwd: str = ".", venv_id: str = "",
                         validator: Callable[[Any], bool] = lambda _: True) -> Any | UnsetType | None:
-    """ determine the variable value that is declared in a Python module and parseable via `ast.literal_eval`.
+    """ determine a variable value that is declared in a Python module in any other VENV.
 
     :param import_name:         import-/dot-name of the module to get the variable value from.
     :param var_name:            name of the variable declared within the module. the value of the variable has to be
-                                parsable by `ast.literal_eval`.
-    :param cwd:                 the CWD to set for the Python interpreter of the venv to run.
-    :param venv_name:           the name of the Python virtual environment to use. using the venv of the
-                                current working directory or :paramref:`~venv_module_attr.cwd`, if not specified.
+                                parsable by :func:`ast.literal_eval`.
+    :param cwd:                 the CWD to set for the Python interpreter of the VENV to run.
+    :param venv_id:             the name/id of the Python virtual environment to use. using the VENV of the
+                                current working directory or :paramref:`.cwd`, if not specified.
     :param validator:           callable called for each line of the console output, with the variable value as
                                 argument, returning True if the variable value is correct. useful if command line output
                                 may contain extra prefixes/lines (e.g. warnings), that have to be skipped/ignored.
-    :return:                    module variable value (parseable by `ast.literal_eval`),
-                                or UNSET on error, if the module got not found or if the module variable doesn't exist.
+    :return:                    module variable value (parseable by :func:`ast.literal_eval`), or
+                                `UNSET` on error, if the module got not found or if the module variable doesn't exist.
 
     .. note:: the PyPI package/project :mod:`ae.system` has to be installed in the used/destination VENV.
     """
     code = f"from ae.system import module_attr; print(module_attr('{import_name}', '{var_name}'))"
     output: list[str] = []
-    with in_prj_dir_venv(project_path=cwd, venv_name=venv_name):
-        sh_exit_if_exec_err(324, f'python -c "{code}"', lines_output=output, shell=True)
+    with in_prj_dir_venv(project_path=cwd, venv_id=venv_id):
+        sh_exit_if_exec_err(324, f'python -c "{code}"', output_lines=output, err_redirect=None)
 
     for line in output:
         try:
@@ -1098,3 +1106,117 @@ def venv_module_var_val(import_name: str, var_name: str, cwd: str = ".", venv_na
             pass    # ignoring errors and warnings like "__init__() called too early; no main app instance"
 
     return UNSET
+
+
+def venv_name(project_path: str = ".") -> str:
+    """ determine the name/id of the current VENV used by a project.
+
+    :param project_path:        path to the project root folder; assuming and using the actual CWD if not specified.
+    :return:                    the determined VENV name/id or an empty string if no VENV got found or is active.
+                                the VENV name/id will be determined either from the first line of a local
+                                ``.python-version`` file, or from an existing and allowed subfolder name
+                                (:data:`VENV_SUB_DIR_NAMES` contains the commonly used ones) of a project-local
+                                VENV. the search starts in the specified project path (or the CWD) and goes up
+                                until 2 parent directories above it. if it did not find any there, then the
+                                name of the currently active VENV (determined via the
+                                function :func:`ae.system.os_env_venv`) will be returned.
+    """
+    for _ in range(VENV_ID_SEARCH_DEPTH):
+        env_file = os_path_join(project_path, '.python-version')    # pyenv or any other VENV
+        if os_path_isfile(env_file):
+            venv_id = read_file(env_file).splitlines()[0].strip()
+            if venv_id:
+                break
+
+        for venv_id in VENV_SUB_DIR_NAMES:
+            if os_path_isdir(os_path_join(project_path, venv_id)):
+                break
+        else:
+            project_path = os_path_join("..", project_path)
+            continue
+        break
+
+    else:
+        venv_id = os_env_venv()
+
+    return venv_id
+
+
+def venv_os_env_vars(venv_id: str, app_obj: ConsoleApp | UnsetType | None = None) -> dict[str, str]:
+    """ return the OS env vars of the Python virtual environment specified by their VENV id.
+
+    :param venv_id:             the id/name of the Python virtual environment (VENV) get the OS env vars for.
+    :param app_obj:             optional :class:`~ae.console.ConsoleApp` instance, used for logging/console output.
+    :return:                    dict with the OS environment variable values of the specified or currently set VENV
+                                or an empty dict if the requested or no VENV was active, or if VENV is not supported.
+    """
+    bin_path = venv_bin_path(venv_id)
+    if app_obj is None:
+        app_obj = cast(ConsoleApp, main_app_instance())  # for console outputs / :meth:`ae.console.ConsoleApp.chk`-calls
+    debug_out = dummy_function if app_obj is UNSET else app_obj.vpo if isinstance(app_obj, ConsoleApp) else print
+
+    if not bin_path:
+        debug_out(f"    * the {venv_id=} does not exist ({os_env_venv()=} {os.getcwd()=})")
+        return {}
+
+    exec_kwargs = venv_sh_exec_kwargs(bin_path, app_obj=app_obj)
+    if not exec_kwargs:
+        debug_out(f"    # empty sh_exec-kwargs to set OS-env-vars of {venv_id=} ({os_env_venv()=} {bin_path=})")
+        return {}
+
+    debug_out(f"    - setting {venv_id=} in OS env vars ({os_env_venv()=} {os.getcwd()=} {bin_path=} {exec_kwargs=})")
+
+    output: list[str] = []    # inspired by Aundre's answer in https://stackoverflow.com/questions/7040592
+    sh_exit_if_exec_err(323, "", **exec_kwargs, output_lines=output, err_redirect=subprocess.PIPE)
+
+    if not output:
+        debug_out(f"    # {venv_id=}-specific OS env vars not found ({os_env_venv()=} {bin_path=} {exec_kwargs=})")
+        return {}
+
+    env_var_lines = [line.strip() for line in output]
+    return dict(line.split("=", maxsplit=1) for line in env_var_lines
+                if "=" in line and not line.startswith("="))
+
+
+def venv_sh_exec_kwargs(bin_path: str, app_obj: AppBase | UnsetType | None = None) -> dict[str, Any]:
+    """ determine the kwargs to be passed onto a call of :func:`ae.sh_exec` to set OS-env vars of a VENV.
+
+    :param bin_path:            the `bin`/`Scripts` folder path of the VENV.
+    :param app_obj:             optional :class:`~ae.core.AppBase` instance, used for logging/console output.
+    :return:                    OS- and VENV-specific command line and extra args to be passed to :func:`ae.sh_exec`
+                                in order to set the VENV-specific OS-environment variables.
+    """
+    env_root = os_path_dirname(bin_path)
+    print_out = dummy_function if app_obj is UNSET else app_obj.po if isinstance(app_obj, AppBase) else print
+    debug_out = dummy_function if app_obj is UNSET else app_obj.vpo if isinstance(app_obj, AppBase) else print
+    exec_kwargs: dict[str, Any] = {'app_obj': app_obj}
+    is_conda = os_path_isdir(os_path_join(env_root, 'conda-meta'))
+
+    if sys.platform == 'win32':
+        if is_conda:
+            activate_path = os_path_join(env_root, 'condabin', 'conda.bat')
+            activate_cmd = f"{shlex.quote(activate_path)} activate {shlex.quote(env_root)}"
+        else:
+            activate_path = activate_cmd = os_path_join(bin_path, 'activate.bat')
+        activate_cmd = f"cmd /c {shlex.quote(activate_cmd)} && set"
+
+    else:
+        sh_cmd = '/bin/sh' if os_path_isfile('/bin/sh') else 'bash'
+        exec_kwargs['decoder_splitter'] = output_zero_split
+        if is_conda:
+            activate_path = ""
+            activate_cmd = f'eval "$(conda shell.posix hook)" && conda activate {shlex.quote(env_root)}'
+            exec_kwargs['shell'] = True  # shell=True because shell function `conda activate` is defined by the eval cmd
+        else:
+            activate_path = os_path_join(bin_path, 'activate')
+            activate_cmd = f"source {shlex.quote(activate_path)}"
+        activate_cmd = f"env -i {sh_cmd} -c 'set -a && {activate_cmd} && env -0'"
+
+    exec_kwargs['extra_args'] = shlex.split(activate_cmd)
+    debug_out(f"    = venv_sh_exec_kwargs() compiled the {exec_kwargs=} for VENV in {bin_path=}")
+
+    if activate_path and not os_path_isfile(activate_path):
+        print_out(f"    * activation script path '{activate_path}' not found for VENV in {bin_path=}")
+        return {}
+
+    return exec_kwargs
