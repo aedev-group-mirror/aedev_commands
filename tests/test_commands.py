@@ -7,6 +7,7 @@ import os
 import contextlib
 import datetime
 import shutil
+import subprocess
 import sys
 import tempfile
 
@@ -21,7 +22,7 @@ from ae.base import (
     camel_to_snake, in_wd, norm_name, norm_path,
     os_path_basename, os_path_dirname, os_path_isdir, os_path_isfile, os_path_join, os_path_relpath,
     read_file, write_bin_file, write_file)
-from ae.system import load_dotenvs, load_env_var_defaults, project_main_file
+from ae.system import load_dotenvs, load_env_var_defaults, project_main_file, os_env_venv, venv_prefix
 from ae.paths import path_items
 from ae.core import (
     DEBUG_LEVEL_DISABLED, DEBUG_LEVEL_ENABLED, DEBUG_LEVEL_VERBOSE,
@@ -34,13 +35,14 @@ from aedev.commands import (
     DEF_PROJECT_PARENT_FOLDER, EXEC_GIT_ERR_PREFIX,
     GIT_CLONE_CACHE_CONTEXT, GIT_FOLDER_NAME, GIT_REMOTE_ORIGIN, GIT_REMOTE_UPSTREAM,
     GIT_RELEASE_REF_PREFIX, GIT_VERSION_TAG_PREFIX, PIP_EDITABLE_PROJECT_PATH_PREFIX, SHELL_LOG_FILE_NAME_SUFFIX,
-    activate_venv, active_venv, bytes_file_diff, check_commit_msg_file, editable_project_root_path,
+    VENV_ID_SEARCH_DEPTH, VENV_SUB_DIR_NAMES,
+    bytes_file_diff, check_commit_msg_file, editable_project_root_path,
     git_add, git_any, git_branches, git_branch_files, git_branch_remotes, git_checkout, git_clone, git_commit,
     git_current_branch, git_diff, git_fetch, git_init_if_needed, git_merge, git_push, git_ref_in_branch,
     git_remote_domain_group, git_remotes, git_renew_remotes,
     git_status, git_tag_add, git_tag_list, git_tag_remotes, git_uncommitted,
     in_prj_dir_venv, in_venv, owner_project_from_url, pip_install, sh_exit_if_git_err, sh_log, sh_logs,
-    venv_bin_path, venv_module_var_val)
+    venv_bin_path, venv_check_prefixes, venv_module_var_val, venv_name, venv_os_env_vars, venv_sh_exec_kwargs)
 
 
 # initialize test environment and declare test constants and fixtures (reduced tests on GitLab CI)
@@ -50,8 +52,10 @@ except FileNotFoundError:       # fails at GitLab CI
     LOCAL_ENV = ""
 tst_repo_domain = "gitlab.com"
 
+bin_dir = 'Scripts' if sys.platform == 'win32' else 'bin'
+
 curr_env = os.environ
-os.environ = curr_env.copy()
+os.environ = curr_env.copy()  # using a real dict here disables the change of OS env vars via os.environ[name] = new_val
 load_dotenvs()
 # env-var==AE_OPTIONS_REPO_TOKEN_AT_GITLAB_COM
 mtn_tst_repo_token = get_domain_user_var('repo_token', domain=tst_repo_domain)
@@ -143,7 +147,7 @@ class TestGitCommands:
     def test_a_pre_test_if_git_cl_is_setup_on_system(self, capsys):
         output = []
 
-        assert sh_exec("git", extra_args=("--version",), lines_output=output) == 0
+        assert sh_exec("git", extra_args=("--version",), output_lines=output) == 0
 
         assert output
         with capsys.disabled():
@@ -159,7 +163,7 @@ class TestGitCommands:
         def _git_lsf(*_args) -> list:
             _output = []
             with in_prj_dir_venv(changed_repo_path):
-                sh_exit_if_git_err(0, "git ls-files", extra_args=_args, lines_output=_output)
+                sh_exit_if_git_err(0, "git ls-files", extra_args=_args, output_lines=_output)
             return _output
 
         def _git_sta() -> list:
@@ -845,7 +849,7 @@ class TestGitCommands:
     def test_git_ls_files_vs_git_status(self, cons_app, empty_repo_path):
         ls_uncommitted = []
         with in_prj_dir_venv(empty_repo_path):
-            sh_exit_if_exec_err(0, "git ls-files -m", lines_output=ls_uncommitted)
+            sh_exit_if_exec_err(0, "git ls-files -m", output_lines=ls_uncommitted, err_redirect=subprocess.STDOUT)
         assert ls_uncommitted == []
 
         st_uncommitted = git_status(empty_repo_path)
@@ -857,7 +861,7 @@ class TestGitCommands:
         ls_uncommitted = []
 
         with in_prj_dir_venv(changed_repo_path):
-            sh_exit_if_exec_err(0, "git ls-files -m", lines_output=ls_uncommitted)
+            sh_exit_if_exec_err(0, "git ls-files -m", output_lines=ls_uncommitted, err_redirect=subprocess.STDOUT)
 
         st_uncommitted = [_[3:] for _ in git_status(changed_repo_path)]
 
@@ -1255,7 +1259,7 @@ class TestHelpers:
 
     @skip_gitlab_ci
     def test_editable_project_root_path_local(self):
-        if active_venv().startswith('aedev3'):
+        if os_env_venv().startswith('aedev3'):
             assert not editable_project_root_path('ae_base')
         else:
             assert not editable_project_root_path('aedev_project_tpls')
@@ -1266,8 +1270,8 @@ class TestHelpers:
             assert editable_project_root_path(prj) == norm_path(os_path_join("~", DEF_PROJECT_PARENT_FOLDER, prj))
 
     def test_editable_project_root_path_returned(self):
-        def _sh_exec_mock(_cmd_line: str, lines_output: list[str], **_kwargs) -> int:
-            lines_output.append(PIP_EDITABLE_PROJECT_PATH_PREFIX + 'tst_ret_pth')
+        def _sh_exec_mock(_cmd_line: str, output_lines: list[str], **_kwargs) -> int:
+            output_lines.append(PIP_EDITABLE_PROJECT_PATH_PREFIX + 'tst_ret_pth')
             return 0
 
         with patch("aedev.commands.sh_exec", side_effect=_sh_exec_mock):
@@ -1463,7 +1467,7 @@ class TestShellExecuteAndLogging:
         sh_logs(log_enable_dir=log_dir)
 
         with in_wd(log_dir):
-            sh_log(log_comment, extra_args=[url_w_tok, url_w_tok], cl_err=99, lines_output=[url_w_tok])
+            sh_log(log_comment, extra_args=[url_w_tok, url_w_tok], cl_err=99, output_lines=[url_w_tok])
 
         assert os_path_isfile(log_file)
         log_content = read_file(log_file)
@@ -1520,45 +1524,44 @@ class TestShellExecuteAndLogging:
             os.remove(home_log)
 
 
-class TestVenv:     # venv tests that are running also on the repo/CI host
-    def test_activate_venv_if_venv_is_not_installed(self, capsys, cons_app):
-        with patch('aedev.commands.venv_bin_path', return_value=""):  # simulate not installed venv on local machine
-            with patch('aedev.commands.active_venv', return_value='mocked_active_venv'):
-                venv_name = activate_venv(name='mocked_new_venv')
+class TestVenvCI:     # venv tests that are running also on the repo/CI host
+    @patch('aedev.commands.os_path_isfile', return_value=False)
+    @patch('aedev.commands.read_file', return_value='dummy_pyenv_nam')
+    @patch('aedev.commands.path_folders', return_value=["dummy_path"])
+    @patch('aedev.commands.os_env_venv', return_value="dummy_venv_name")
+    def test_venv_bin_path(self, _os_env_venv, _folders, _read_file, _os_path_isfile):
+        assert venv_bin_path("invalid venv name:") == ""
 
-            assert venv_name == ""
-            out, err = capsys.readouterr()
-            assert "does not exists - skipping switch from current venv" in out
-            assert 'mocked_new_venv' in out
-            assert 'mocked_active_venv' in out
+        with (patch('aedev.commands.os.getenv', return_value="")):
+            assert venv_bin_path('tstVenv') == ""
 
-            cons_app.debug_level = DEBUG_LEVEL_VERBOSE
+        with patch('aedev.commands.os_path_isdir', return_value=True):
+            assert venv_bin_path('tstVenv')
 
-            with patch('aedev.commands.active_venv', return_value=""):
-                venv_name = activate_venv(name='new_mocked_venv')
+        with patch('aedev.commands.os.getenv', return_value='/path/to/venv_tst_nam/'):
+            assert venv_bin_path('tstVenv') == ""
 
-            assert venv_name == ""
-            out, err = capsys.readouterr()
-            assert "activation skipped" in out
-            assert 'new_mocked_venv' in out
+        with (patch('aedev.commands.os.getenv', return_value='dummy_pyenv_nam'),
+              patch('aedev.commands.os_path_isfile', return_value=True),
+              patch('aedev.commands.os_path_basename', return_value='envs'),
+              ):
+            assert venv_bin_path('tstVenv') == ""
 
-        with patch('aedev.commands.venv_bin_path', return_value=""):
-            assert activate_venv() == ""
+        assert venv_bin_path("venv_tst_name") == ""
 
-        with patch('aedev.commands.venv_bin_path', return_value="any_ : invalid : or not existing path"):
-            assert activate_venv() == ""
+    def test_venv_check_prefixes(self, capsys, cons_app):
+        check_paths = venv_check_prefixes('venv_tst_nam')
+        assert isinstance(check_paths, list)
+        assert len(check_paths) >= 3 + (len(VENV_SUB_DIR_NAMES) + 1) * VENV_ID_SEARCH_DEPTH  # 3 fix Conda + prj-locals
+        assert isinstance(check_paths[0], tuple)
+        assert len(check_paths[0]) >= 1
+        assert all(part for parts in check_paths for part in parts)
 
-        assert activate_venv(name=active_venv()) == ""
+        with patch('aedev.commands.os.getenv', return_value='/path/to/venv_tst_nam/'):
+            assert venv_check_prefixes('venv_tst_nam')
 
-    def test_venv_bin_path_if_venv_is_not_installed(self, monkeypatch):
-        # patch activa_venv() and os_path_isfile('.python-version') to simulate not installed pyenv on local machine
-        with (patch('aedev.commands.active_venv', return_value=""),
-              patch('aedev.commands.os_path_isfile', return_value=False)):
-            assert venv_bin_path() == ""
-
-            monkeypatch.delenv('PYENV_ROOT', raising=False)
-
-            assert venv_bin_path() == ""
+        with patch('aedev.commands.os.getenv', return_value='/path/to/envs/dirname'):
+            assert venv_check_prefixes('miniconda3')    # or 'anaconda3' or 'base' for test coverage
 
     def test_venv_module_var_val(self):     # more tests in TestVenvIntegration
         tst_dict = venv_module_var_val("setup", 'setup_kwargs')
@@ -1570,166 +1573,206 @@ class TestVenv:     # venv tests that are running also on the repo/CI host
 
         assert venv_module_var_val('setup', 'NOT_EXISTING_TST_MODULE_VAR_NAME') is UNSET
 
+    def test_venv_name(self):
+        with (patch('aedev.commands.os_path_isfile', return_value=True),
+              patch('aedev.commands.read_file', return_value='tst_venv_name')):
+            assert venv_name() == 'tst_venv_name'
 
-@pytest.fixture
-def old_and_new_env():
-    """ provide another VENV for the integration tests. """
-    old_venv = active_venv()
-    new_venv = 'aedev312' if old_venv == 'ae312' else 'ae312'
-    yield old_venv, new_venv
+        with (patch('aedev.commands.os_path_isfile', return_value=False),
+              patch('aedev.commands.os_path_isdir', return_value=True)):
+            assert venv_name() in VENV_SUB_DIR_NAMES
 
+        with (patch('aedev.commands.os_path_isfile', return_value=False),
+              patch('aedev.commands.os_path_isdir', return_value=False),
+              patch('aedev.commands.os_env_venv', return_value='act_venv_nam')):
+            assert venv_name() == 'act_venv_nam'
 
-@skip_gitlab_ci             # pyenv not available on GitLab CI
-class TestVenvIntegration:
-    def test_activate_venv(self):
-        cur_venv = active_venv()
-        activate_venv(LOCAL_VENV)
-        assert active_venv() == '' if 'CI_PROJECT_ID' in os.environ else LOCAL_VENV
-        if cur_venv:
-            activate_venv(cur_venv)
-            assert active_venv() == cur_venv
+    def test_venv_os_env_vars(self):
+        venv_id = 'venv_mock_id'
 
-    def test_activate_venv_old_and_new(self, old_and_new_env, cons_app):
-        old_venv, new_venv = old_and_new_env
-        try:
-            assert activate_venv(name=new_venv) == old_venv
-            assert active_venv() == new_venv
-        finally:
-            assert activate_venv(name=old_venv) == new_venv
-        assert active_venv() == old_venv
+        assert venv_os_env_vars(venv_id) == {}
 
-    def test_activate_venv_old_and_new_without_cons_app_obj(self, old_and_new_env):
-        old_venv, new_venv = old_and_new_env
-        try:
-            assert activate_venv(name=new_venv) == old_venv
-            assert active_venv() == new_venv
-        finally:
-            assert activate_venv(name=old_venv) == new_venv
-        assert active_venv() == old_venv
+        with patch('aedev.commands.venv_bin_path', return_value=f"/path/to/{venv_id}/bin"):
+            assert venv_os_env_vars(venv_id) == {}
 
-    def test_activate_venv_errors(self, capsys, cons_app):
-        with patch('aedev.commands.venv_bin_path', return_value=""):
-            with patch('aedev.commands.active_venv', return_value='mocked_active_venv'):
-                venv_name = activate_venv(name='mocked_new_venv')
+            with patch('aedev.commands.venv_sh_exec_kwargs', return_value={'exit_on_err': False}):
+                assert venv_os_env_vars(venv_id) == {}
 
-            assert venv_name == ""
+                def _mock_sh_exec(*_args, output_lines, **_kwargs):
+                    output_lines.append("removed")
+                    output_lines.append('var_nam' + "=" + 'var_val')
+                    output_lines.append("=removed")
+
+                with patch('aedev.commands.sh_exit_if_exec_err', new=_mock_sh_exec):
+                    assert venv_os_env_vars(venv_id) == {'var_nam': 'var_val'}
+
+    def test_venv_os_env_vars_if_venv_is_not_installed(self, capsys, cons_app):
+        with patch('aedev.commands.venv_bin_path', return_value=""):  # simulate not or erroneous installed venv
+            with patch('aedev.commands.os_env_venv', return_value='mocked_os_env_venv'):
+                venv_id = venv_os_env_vars(venv_id='mocked_new_venv')
+
+            assert venv_id == {}
             out, err = capsys.readouterr()
-            assert "does not exists - skipping switch from current venv" in out
             assert 'mocked_new_venv' in out
-            assert 'mocked_active_venv' in out
+            assert 'mocked_os_env_venv' in out
 
             cons_app.debug_level = DEBUG_LEVEL_VERBOSE
 
-            with patch('aedev.commands.active_venv', return_value=""):
-                venv_name = activate_venv(name='new_mocked_venv')
+            with patch('aedev.commands.os_env_venv', return_value=""):
+                venv_id = venv_os_env_vars(venv_id='new_mocked_venv')
 
-            assert venv_name == ""
+            assert venv_id == {}
             out, err = capsys.readouterr()
-            assert "activation skipped" in out
             assert 'new_mocked_venv' in out
+            assert "'new_mocked_venv' does not exist" in out
 
         with patch('aedev.commands.venv_bin_path', return_value=""):
-            assert activate_venv() == ""
+            assert venv_os_env_vars('tst_venv_id', app_obj=cons_app) == {}
 
         with patch('aedev.commands.venv_bin_path', return_value="any_ : invalid : or not existing path"):
-            assert activate_venv() == ""
+            assert venv_os_env_vars('tst_venv_id', app_obj=cons_app) == {}
 
-        assert activate_venv(name=active_venv()) == ""
+        out, err = capsys.readouterr()
+        assert "'tst_venv_id' does not exist" in out
+        assert err == ""
 
-    def test_active_venv(self):
-        assert not bool(active_venv()) == 'CI_PROJECT_ID' in os.environ      # active_venv()=='' on gitlab CI
+        with patch('ae.core.main_app_instance', return_value=UNSET):
+            assert venv_os_env_vars(venv_id=os_env_venv()).get('VIRTUAL_ENV', "") == venv_prefix()
 
-    def test_active_venv_old_and_new(self, cons_app, old_and_new_env):
-        old_venv, new_venv = old_and_new_env
-        try:
-            activate_venv(name=new_venv)
+        out, err = capsys.readouterr()
+        assert out == ""
+        assert err == ""
 
-            assert active_venv() == new_venv
-        finally:
-            activate_venv(name=old_venv)
+    def test_venv_sh_exec_kwargs(self, capsys):
+        assert venv_sh_exec_kwargs("") == {}
+
+        with patch('aedev.commands.sys.platform', new='win32'):
+            bin_path = '/not/existing/path/to/venv/bin'
+            assert venv_sh_exec_kwargs(bin_path) == {}
+            out, err = capsys.readouterr()
+            assert bin_path in out
+            assert 'not found for VENV' in out
+            assert err == ""
+
+            with patch('aedev.commands.os_path_isdir', return_value=True):  # mock is_conda==True
+                assert venv_sh_exec_kwargs(bin_path) == {}  # os_path_isdir(activate_path) is False
+
+        with patch('aedev.commands.os_path_isdir', return_value=True):  # mock is_conda==True under Linux/MacOS
+            assert venv_sh_exec_kwargs(bin_path) != {}
+            assert 'app_obj' in venv_sh_exec_kwargs(bin_path)
+            assert 'shell' in venv_sh_exec_kwargs(bin_path)
+            assert os_path_dirname(bin_path) in venv_sh_exec_kwargs(bin_path)['extra_args'][-1]
+
+
+@skip_gitlab_ci             # venv tests that run only on local machine because pyenv is not available on GitLab CI
+class TestVenvIntegration:
+    @pytest.fixture
+    def old_and_new_env(self):
+        """ provide another VENV for the integration tests. """
+        old_venv = os_env_venv()
+        new_venv = 'aedev312' if old_venv == 'ae312' else 'ae312'
+        yield old_venv, new_venv
 
     def test_in_prj_dir_venv(self, cons_app, empty_repo_path, old_and_new_env):
         old_venv, new_venv = old_and_new_env
 
         assert os.getcwd() != empty_repo_path
-        assert new_venv not in venv_bin_path().split("/")
-        with in_prj_dir_venv(project_path=empty_repo_path, venv_name=new_venv):
+        assert new_venv not in venv_bin_path('tstVenv').split("/")
+        with in_prj_dir_venv(project_path=empty_repo_path, venv_id=new_venv):
             assert os.getcwd() == empty_repo_path
-            assert new_venv in venv_bin_path().split("/")
+            assert new_venv in venv_bin_path(new_venv).split("/")
         assert os.getcwd() != empty_repo_path
-        assert new_venv not in venv_bin_path().split("/")
+        assert new_venv not in venv_bin_path(old_venv).split("/")
+        assert new_venv not in venv_bin_path('tstVenv').split("/")
 
     def test_in_venv(self):
-        cur_venv = active_venv()
+        cur_venv = os_env_venv()
         with in_venv(LOCAL_VENV):
-            assert active_venv() == '' if 'CI_PROJECT_ID' in os.environ else LOCAL_VENV
-        assert active_venv() == cur_venv
-
-    def test_in_venv_old_and_new(self, cons_app, old_and_new_env):
-        old_venv, new_venv = old_and_new_env
-        assert active_venv() == old_venv
-        with in_venv(venv_name=new_venv):
-            assert active_venv() == new_venv
-        assert active_venv() == old_venv
+            assert os_env_venv() == '' if 'CI_PROJECT_ID' in os.environ else LOCAL_VENV
+        assert os_env_venv() == cur_venv
 
     def test_in_venv_and_local_python_version(self, cons_app, old_and_new_env):
         old_venv, new_venv = old_and_new_env
 
-        assert active_venv() == old_venv
-        with in_venv():
-            assert active_venv() == old_venv
-        assert active_venv() == old_venv
+        assert os_env_venv() == old_venv
+        with in_venv(venv_id=old_venv):
+            assert os_env_venv() == old_venv
+        assert os_env_venv() == old_venv
 
-        assert active_venv() == old_venv
-        assert new_venv not in venv_bin_path().split("/")
-        assert new_venv not in venv_bin_path(venv_name=old_venv).split("/")
-        with in_venv(venv_name=new_venv):
-            assert active_venv() == new_venv
-            assert new_venv not in venv_bin_path().split("/")
-            assert new_venv in venv_bin_path(venv_name=new_venv).split("/")
-        assert active_venv() == old_venv
-        assert new_venv not in venv_bin_path().split("/")
-        assert new_venv not in venv_bin_path(venv_name=old_venv).split("/")
+        assert os_env_venv() == old_venv
+        assert new_venv not in venv_bin_path(old_venv).split("/")
+        with in_venv(venv_id=new_venv):
+            assert os_env_venv() == new_venv
+            assert new_venv not in venv_bin_path('tstVenv').split("/")
+            assert new_venv in venv_bin_path(new_venv).split("/")
+        assert os_env_venv() == old_venv
+        assert new_venv not in venv_bin_path('tstVenv').split("/")
+        assert new_venv not in venv_bin_path(old_venv).split("/")
 
-    def test_venv_bin_path_ae_shell(self):
-        act_env = active_venv()
+    def test_in_venv_old_and_new(self, cons_app, old_and_new_env):
+        old_venv, new_venv = old_and_new_env
+        assert os_env_venv() == old_venv
+        with in_venv(venv_id=new_venv):
+            assert os_env_venv() == new_venv
+        assert os_env_venv() == old_venv
 
-        assert venv_bin_path(venv_name=act_env) == os_path_join(os.getenv('PYENV_ROOT', ""), 'versions', act_env, 'bin')
+    def test_venv_bin_path(self):
+        # noinspection PyTypeChecker
+        assert venv_bin_path(os_env_venv()).startswith(os_path_join(os.getenv('PYENV_ROOT'), 'versions'))
+        assert venv_bin_path(os_env_venv()).endswith(os_path_join(os_env_venv(), bin_dir))
+
+    def test_venv_bin_path_errors(self, monkeypatch):
+        act_env = os_env_venv()
+
+        assert venv_bin_path(act_env).startswith(os.getenv('PYENV_ROOT', "install pyenv to fix this test"))
+        assert venv_bin_path(act_env).endswith(os_path_join(act_env, bin_dir))
+
+        monkeypatch.delenv('PYENV_ROOT', raising=False)
+        assert venv_bin_path('tstVenv') == ""
+
+    def test_venv_bin_path_if_pyenv_is_not_installed(self, monkeypatch):
+        # patch activa_venv() and os_path_isfile('.python-version') to simulate not installed pyenv on local machine
+        with (patch('aedev.commands.os_env_venv', return_value=""),
+              patch('aedev.commands.os_path_isfile', return_value=False)):
+            assert venv_bin_path('tstVenv') == ""
+
+            monkeypatch.delenv('PYENV_ROOT', raising=False)
+
+            assert venv_bin_path('tstVenv') == ""
+
+    def test_venv_bin_path_of_this_project(self):
+        act_env = os_env_venv()
+
+        assert venv_bin_path(act_env).startswith(os.getenv('PYENV_ROOT', "failure: pyenv is not installed"))
+        assert venv_bin_path(act_env).endswith(os_path_join(act_env, bin_dir))
 
         with patch('aedev.commands.os_path_isfile', return_value=False):
-            assert venv_bin_path() == os_path_join(os.getenv('PYENV_ROOT', ""), 'versions', act_env, 'bin')
-
-        with (patch('aedev.commands.os_path_isfile', return_value=False),
-              patch('aedev.commands.active_venv', return_value="")):
-            assert venv_bin_path() == ""
+            assert venv_bin_path(act_env).startswith(os.getenv('PYENV_ROOT', "install pyenv will fix this test"))
+            assert venv_bin_path(act_env).endswith(os_path_join(act_env, bin_dir))
 
         filed_venv = read_file('.python-version').splitlines()[0]
-        assert venv_bin_path() == os_path_join(os.getenv('PYENV_ROOT', ""), 'versions', filed_venv, 'bin')
+        assert venv_bin_path(act_env).startswith(os.getenv('PYENV_ROOT', "pyenv is needed for this test"))
+        assert venv_bin_path(act_env).endswith(os_path_join(filed_venv, bin_dir))
 
         any_venv = 'any_tst_venv_name'
         with (patch('aedev.commands.read_file', return_value=any_venv),
               patch('aedev.commands.os_path_isdir', return_value=True)):
-            assert venv_bin_path() == os_path_join(os.getenv('PYENV_ROOT', ""), 'versions', any_venv, 'bin')
+            assert venv_bin_path(any_venv).startswith(os.getenv('PYENV_ROOT', "install pyenv will fix this test"))
+            assert venv_bin_path(any_venv).endswith(os_path_join(any_venv, bin_dir))
 
-    def test_venv_bin_path_with_python_version_file_in_parent_dirs(self, empty_repo_path):
-        any_venv = 'above_tst_venv_name'
-        write_file(os_path_join(empty_repo_path, '.python-version'), any_venv)
-        with in_wd(empty_repo_path):
-            for dir_deepness in range(1, 6):
-                sub_dir = 'sub_dir' + str(dir_deepness)
-                os.mkdir(sub_dir)
-                os.chdir(sub_dir)
+        with (patch('aedev.commands.os_path_isfile', return_value=False),
+              patch('aedev.commands.os_env_venv', return_value="")):
+            assert venv_bin_path(act_env).startswith(os.getenv('PYENV_ROOT', "pyenv root not declared"))
 
-                with patch('aedev.commands.os_path_isdir', return_value=True):
-                    assert venv_bin_path() == os_path_join(os.getenv('PYENV_ROOT', ""), 'versions', any_venv, 'bin')
-
-    def test_venv_bin_path_errors(self, monkeypatch):
-        act_env = active_venv()
-
-        assert venv_bin_path(venv_name=act_env) == os_path_join(os.getenv('PYENV_ROOT', ""), 'versions', act_env, 'bin')
-
-        monkeypatch.delenv('PYENV_ROOT', raising=False)
-        assert venv_bin_path() == ""
+    def test_venv_check_prefixes(self, capsys, cons_app):
+        with (patch('aedev.commands.os.getenv', return_value='check_found_venv'),
+              patch('aedev.commands.path_folders', return_value=['poetry_venv'])):
+            check_paths = venv_check_prefixes('venv_tst_nam')
+        assert isinstance(check_paths, list)
+        assert len(check_paths) > 3 + (len(VENV_SUB_DIR_NAMES) + 1) * VENV_ID_SEARCH_DEPTH  # 3 fix Conda + prj-locals +
+        assert isinstance(check_paths[0], tuple)
+        assert len(check_paths[0]) >= 1
+        assert all(part for parts in check_paths for part in parts)
 
     def test_venv_module_var_val(self):
         tst_dict = venv_module_var_val('setup', 'setup_kwargs', cwd="../aedev_project_manager")
@@ -1738,3 +1781,126 @@ class TestVenvIntegration:
         assert 'url' in tst_dict
         assert 'version' in tst_dict
         assert tst_dict['name'] == 'aedev_project_manager'
+
+        assert venv_module_var_val('setup', 'NOT_EXISTING_TST_MODULE_VAR_NAME') is UNSET
+
+    def test_venv_name_with_project_local_venv(self, tmp_path):
+        loc_venv = VENV_SUB_DIR_NAMES[0]
+        with in_wd(str(tmp_path)):
+            os.makedirs(os_path_join(loc_venv, bin_dir))
+            for dir_deepness in range(1, VENV_ID_SEARCH_DEPTH):
+                assert venv_name() == loc_venv, f"failing to find {loc_venv} in {sub_dir=}"
+
+                sub_dir = 'sub_dir' + str(dir_deepness)
+                os.mkdir(sub_dir)
+                os.chdir(sub_dir)
+
+    def test_venv_name_with_python_version_file_in_parent_dirs(self, tmp_path):
+        ver_venv = 'above_tst_venv_name'
+        write_file(os_path_join(str(tmp_path), '.python-version'), ver_venv)
+        with in_wd(str(tmp_path)):
+            for dir_deepness in range(1, VENV_ID_SEARCH_DEPTH):
+                with patch('aedev.commands.os_path_isdir', return_value=False):
+                    assert venv_name() == ver_venv, f"failing in {sub_dir=}"
+
+                sub_dir = 'sub_dir' + str(dir_deepness)
+                os.mkdir(sub_dir)
+                os.chdir(sub_dir)
+
+    def test_venv_os_env_vars(self):
+        cur_venv = os_env_venv()
+        venv_os_env_vars(LOCAL_VENV)
+        assert os_env_venv() == '' if 'CI_PROJECT_ID' in os.environ else LOCAL_VENV
+        if cur_venv:
+            venv_os_env_vars(cur_venv)
+            assert os_env_venv() == cur_venv
+
+    def test_venv_os_env_vars_errors(self, capsys, cons_app):
+        with patch('aedev.commands.venv_bin_path', return_value=""):
+            with patch('aedev.commands.os_env_venv', return_value='mocked_os_env_venv'):
+                venv_vars = venv_os_env_vars(venv_id='mocked_new_venv')
+
+            assert venv_vars == {}
+            out, err = capsys.readouterr()
+            assert 'mocked_new_venv' in out
+            assert 'mocked_os_env_venv' in out
+
+            cons_app.debug_level = DEBUG_LEVEL_VERBOSE
+
+            with patch('aedev.commands.os_env_venv', return_value=""):
+                venv_vars = venv_os_env_vars(venv_id='new_mocked_venv')
+
+            assert venv_vars == {}
+            out, err = capsys.readouterr()
+            assert 'new_mocked_venv' in out
+            assert "'new_mocked_venv' does not exist" in out
+
+        with patch('aedev.commands.venv_bin_path', return_value=""):
+            assert venv_os_env_vars('tst_venv_id', app_obj=cons_app) == {}
+
+        with patch('aedev.commands.venv_bin_path', return_value="any_ : invalid : or not existing path"):
+            assert venv_os_env_vars('tst_venv_id', app_obj=cons_app) == {}
+
+        out, err = capsys.readouterr()
+        assert "'tst_venv_id' does not exist" in out
+        assert err == ""
+
+        with patch('ae.core.main_app_instance', return_value=UNSET):
+            assert venv_os_env_vars(venv_id=os_env_venv()).get('VIRTUAL_ENV', "") == venv_prefix()
+
+        out, err = capsys.readouterr()
+        assert out == ""
+        assert err == ""
+
+    def test_venv_os_env_vars_old_and_new(self, capsys, old_and_new_env, cons_app):
+        old_venv, new_venv = old_and_new_env
+
+        env_vars = venv_os_env_vars(venv_id=new_venv)
+
+        assert not any(old_venv in var_val for var_nam, var_val in env_vars.items())
+        assert any(new_venv in var_val for var_nam, var_val in env_vars.items())
+        out, err = capsys.readouterr()
+        assert old_venv in out
+        assert new_venv in out
+
+        with patch('ae.shell.main_app_instance', return_value=UNSET):
+            env_vars = venv_os_env_vars(venv_id=new_venv, app_obj=UNSET)
+
+        assert not any(old_venv in var_val for var_nam, var_val in env_vars.items())
+        assert any(new_venv in var_val for var_nam, var_val in env_vars.items())
+        out, err = capsys.readouterr()
+        assert old_venv not in out
+        assert new_venv not in out
+
+    def test_venv_os_env_vars_old_and_new_without_cons_app_obj(self, capsys, old_and_new_env):
+        old_venv, new_venv = old_and_new_env
+
+        env_vars = venv_os_env_vars(venv_id=new_venv)
+
+        assert not any(old_venv in var_val for var_nam, var_val in env_vars.items())
+        assert any(new_venv in var_val for var_nam, var_val in env_vars.items())
+        out, err = capsys.readouterr()
+        assert old_venv in out
+        assert new_venv in out
+
+        env_vars = venv_os_env_vars(venv_id=new_venv, app_obj=UNSET)
+
+        assert not any(old_venv in var_val for var_nam, var_val in env_vars.items())
+        assert any(new_venv in var_val for var_nam, var_val in env_vars.items())
+        out, err = capsys.readouterr()
+        assert out == ""
+        assert err == ""
+
+    def test_venv_sh_exec_kwargs(self, capsys):
+        bin_path = venv_bin_path(os_env_venv())
+        kwargs = venv_sh_exec_kwargs(bin_path)
+
+        assert kwargs != {}
+        assert 'app_obj' in kwargs
+        assert 'shell' not in kwargs or kwargs['shell'] is True
+        assert os_path_dirname(bin_path) in kwargs['extra_args'][-1]
+
+        out, err = capsys.readouterr()
+        assert bin_path in out
+        assert '= venv_sh_exec_kwargs() compiled the exec_kwargs=' in out
+        assert err == ""
