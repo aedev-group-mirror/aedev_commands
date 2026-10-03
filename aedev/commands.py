@@ -10,7 +10,8 @@ software development operation commands helpers
 fundamental shell execution helpers
 -----------------------------------
 
-the helper functions :func:`sh_exit_if_git_err` provides fundamental Git command tracing for in-depth logging/debugging.
+the helper functions :func:`run_git_traced` provides fundamental Git command execution with optional
+tracing/logging/debugging, error checking and exiting/quitting.
 
 the logging of executed command lines and their console output is highly useful for debugging and protocolling
 purposes. this portion provides the following helper functions to implement logging for external commands.
@@ -22,8 +23,8 @@ logging gets automatically enabled, if the corresponding log file exists.
 * :data:`SHELL_LOG_FILE_NAME_SUFFIX`: the default filename suffix for shell command log files.
 
 .. hint::
-    this feature is implemented in :func:`sh_exit_if_git_err` for all the git command execution helpers (``git_*()``)
-    of this portion. to enable logging of all executed git commands simply create a log file with the name
+    this logging is implemented in :func:`run_git_traced` for all the git command execution helpers (``git_*()``)
+    of this portion. to enable the extended logging of all executed git commands simply create a log file with the name
     ``git_sh.log``, situated in the current working directory and/or in the users home directory (~).
 
 
@@ -93,6 +94,8 @@ pip command helpers
 
 * :func:`pip_install`: install/check/find outdated external Python projects/distributions required by a Python project.
 
+* :data:`PIP_EDITABLE_PROJECT_PATH_PREFIX`: displayed by the ``pip show`` command, used to parse editable project path.
+
 
 virtual environment helpers
 ---------------------------
@@ -107,15 +110,16 @@ these helper functions are provided to assist with the management of Python virt
 * :func:`venv_module_var_val`: determine a variable value declared in a Python module, installed in any other VENV.
 * :func:`venv_name: determine the name/id of the current VENV used by a project.
 * :func:`venv_os_env_vars`: returns the OS environment variables of a VENV (Python virtual environment).
-* :func:`venv_sh_exec_kwargs: determine the :func:`sh_exec`-kwargs to set/switch the OS-env vars of a VENV.
+* :func:`venv_run_cmd_args: determine the :func:`run_cmd`-kwargs to set/switch the OS-env vars of a VENV.
 
 
-the following example installs the required packages of a project into its local virtual environment by
-using the :func:`in_prj_dir_venv` context manager together with the shell execution function :func:`sh_exec`
+the following example is executing in project root the shell/console command: `pip install -r requirements.txt`
+in order to install the required packages of a project into its local virtual environment by
+using the :func:`in_prj_dir_venv` context manager together with the shell execution function :func:`run_cmd`
 and the constant :data:`~aedev.base.PIP_CMD` (which differs depending on your OS)::
 
     with in_prj_dir_venv(project_root_path):
-        sh_err = sh_exec(PIP_CMD + " install -r requirements.txt")
+        sh_err = run_cmd(PIP_CMD, "install", "-r", "requirements.txt")
 """
 # pylint: disable=too-many-lines
 import json
@@ -133,7 +137,7 @@ from typing import Any, cast
 
 from ae.base import (                                                                                   # type: ignore
     DEF_PROJECT_PARENT_FOLDER, UNSET, UnsetType,
-    dummy_function, extend_file, in_wd, norm_path, now_str,
+    dummy_function, extend_file, in_wd, list_find, norm_path, now_str,
     os_path_basename, os_path_dirname, os_path_expanduser, os_path_isdir, os_path_isfile, os_path_join,
     read_file, write_file)
 from ae.system import norm_pip_name, os_env_venv, venv_prefix                                           # type: ignore
@@ -141,14 +145,14 @@ from ae.paths import path_folders                                               
 from ae.core import main_app_instance, temp_context_get_or_create, AppBase                              # type: ignore
 from ae.console import ConsoleApp                                                                       # type: ignore
 from ae.shell import (                                                                                  # type: ignore
-    STDERR_BEG_MARKER, hint, in_os_env, mask_token, output_zero_split, sh_exec, sh_exit_if_exec_err)
+    STDERR_BEG_MARKER, hint, in_os_env, mask_token, output_zero_split, run_cmd, run_logged_cmd)
 from aedev.base import COMMIT_MSG_FILE_NAME, DEF_MAIN_BRANCH, PIP_CMD                                   # type: ignore
 
 
-__version__ = '0.3.18'
+__version__ = '0.3.19'
 
 
-EXEC_GIT_ERR_PREFIX = "sh_exec() returned error "       #: used by sh_exit_if_exec_err to mark error in 1st output line
+EXEC_GIT_ERR_PREFIX = "run_cmd() returned error "       #: for :func:`run_git_traced` to mark error in 1st output line
 
 GIT_CLONE_CACHE_CONTEXT = 'shell.git_clone'             #: temp directory context for git clone downloads
 GIT_FOLDER_NAME = '.git'                                #: git subfolder in project path root of local repository
@@ -185,7 +189,7 @@ def bytes_file_diff(file_content: bytes, file_path: str, line_sep: str = os.line
     with tempfile.NamedTemporaryFile('w+b', delete=False) as tfp:  # delete_on_close kwarg available in Python 3.12+
         tfp.write(file_content)
         tfp.close()
-        output = sh_exit_if_git_err(72, "git diff", extra_args=("--no-index", tfp.name, file_path), exit_on_err=False)
+        output = run_git_traced(72, "git", "diff", "--no-index", tfp.name, file_path, exit_on_err=False)
         os.remove(tfp.name)
 
     if output and not output[0].startswith(line_sep):
@@ -220,7 +224,7 @@ def editable_project_root_path(project_name: str) -> str:
                                 or empty string, if the package is not installed as editable.
     """
     output: list[str] = []
-    if sh_exec(PIP_CMD, extra_args=("show", project_name), output_lines=output) == 0:
+    if run_cmd(PIP_CMD, "show", project_name, output_lines=output, stderr=subprocess.STDOUT) == 0:
         for line in output:
             if line.startswith(PIP_EDITABLE_PROJECT_PATH_PREFIX):
                 return line[len(PIP_EDITABLE_PROJECT_PATH_PREFIX):]
@@ -240,21 +244,23 @@ def git_add(project_path: str, *extra_args: str):
     :param project_path:        project path.
     :param extra_args:          additional arguments passed onto git add command. default=["-A"].
     """
+    if not extra_args:
+        extra_args = ("-A", )
     with in_prj_dir_venv(project_path):
-        sh_exit_if_git_err(331, "git add", extra_args=extra_args or ["-A"])
+        run_git_traced(331, "git", "add", *extra_args)
 
 
 def git_any(project_path: str, *args: str) -> list[str]:
     """ execute any git command.
 
     :param project_path:        path to project root folder.
-    :param args:                arguments passed onto the git executable. first arg is the git command.
+    :param args:                arguments passed onto the git executable. first arg is the "git" command.
     :return:                    list of console output lines of the git command optionally including the exit error code
                                 (marked with :data:`EXEC_GIT_ERR_PREFIX` in the first returned list item),
-                                like returned by :func:`sh_exit_if_git_err`.
+                                like returned by :func:`run_git_traced`.
     """
     with in_prj_dir_venv(project_path):
-        output = sh_exit_if_git_err(329, "git", extra_args=args)
+        output = run_git_traced(329, "git", *args)
     return output
 
 
@@ -265,8 +271,10 @@ def git_branches(project_path: str, *extra_args: str) -> list[str]:
     :param extra_args:          additional arguments passed onto git branch command. default=("-a", "--no-color").
     :return:                    list of branch names of the project repo.
     """
+    if not extra_args:
+        extra_args = ("-a", "--no-color")
     with in_prj_dir_venv(project_path):
-        all_branches = sh_exit_if_git_err(327, "git branch", extra_args=extra_args or ("-a", "--no-color"))
+        all_branches = run_git_traced(327, "git", "branch", *extra_args)
     return [branch_name[2:] for branch_name in all_branches]
 
 
@@ -288,8 +296,8 @@ def git_branch_files(project_path: str, branch_or_tag: str = DEF_MAIN_BRANCH, un
     """
     file_paths = set()
 
-    def _call(_cmd: str, _args: tuple[str, ...], _dedent: int = 0):
-        _output = sh_exit_if_git_err(318, _cmd, extra_args=_args, exit_on_err=False)
+    def _call(*_args: str, _dedent: int = 0):
+        _output = run_git_traced(318, *_args, exit_on_err=False)
         for _fil_path in _output:
             _fil_path = _fil_path[_dedent:]
             if not skip_file_path(_fil_path):
@@ -297,10 +305,10 @@ def git_branch_files(project_path: str, branch_or_tag: str = DEF_MAIN_BRANCH, un
 
     with in_prj_dir_venv(project_path):
         if untracked:
-            _call("git ls-files", ("--cached", "--others"))
-            _call("git status", ("--find-renames", "--porcelain",  "--untracked-files", "-v"), _dedent=3)
+            _call("git", "ls-files", "--cached", "--others")
+            _call("git", "status", "--find-renames", "--porcelain",  "--untracked-files", "-v", _dedent=3)
         # --compact-summary is alternative to --name-only
-        _call("git diff", ("--find-renames", "--full-index", "--name-only", "--no-color", branch_or_tag))
+        _call("git", "diff", "--find-renames", "--full-index", "--name-only", "--no-color", branch_or_tag)
 
     return file_paths
 
@@ -350,7 +358,7 @@ def git_checkout(project_path: str, *extra_args: str,
     args.extend(extra_args)
 
     with in_prj_dir_venv(project_path):
-        output = sh_exit_if_git_err(357, "git checkout", extra_args=args, exit_on_err=exit_on_err)
+        output = run_git_traced(357, "git", "checkout", *args, exit_on_err=exit_on_err)
 
     return os.linesep.join(output)
 
@@ -386,8 +394,8 @@ def git_clone(repo_parent_url: str, project_name: str, *extra_args: str,
     args.append(f"{repo_parent_url}/{project_name}.git")
 
     with in_prj_dir_venv(parent_path):
-        output = sh_exit_if_git_err(315, "git clone", extra_args=args, exit_on_err=False,
-                                    log_enable_dir=project_path if enable_log else "")
+        output = run_git_traced(315, "git", "clone", *args,
+                                exit_on_err=False, log_enable_dir=project_path if enable_log else "")
 
     if output and output[0].startswith(EXEC_GIT_ERR_PREFIX):
         return ""
@@ -418,7 +426,7 @@ def git_commit(project_path: str, project_version: str, *extra_args: str,
     args.extend(extra_args)
 
     with in_prj_dir_venv(project_path):
-        sh_exit_if_git_err(382, "git commit", extra_args=args)
+        run_git_traced(382, "git", "commit", *args)
 
 
 def git_current_branch(project_path: str) -> str:
@@ -431,7 +439,7 @@ def git_current_branch(project_path: str) -> str:
         return ""
 
     with in_prj_dir_venv(project_path):
-        cur_branch = sh_exit_if_git_err(328, "git branch --show-current")
+        cur_branch = run_git_traced(328, "git", "branch", "--show-current")
     return cur_branch[0] if cur_branch else ""
 
 
@@ -444,13 +452,13 @@ def git_diff(project_path: str, *extra_args: str) -> list[str]:
                                 pass e.g. --compact-summary or --name-only for a more compact output/return.
     :return:                    list of console output lines of the git diff command, optionally including the exit
                                 error code (marked with :data:`EXEC_GIT_ERR_PREFIX` in the first returned list item),
-                                like returned by :func:`sh_exit_if_git_err`.
+                                like returned by :func:`run_git_traced`.
     """
     args = ["--no-color", "--find-copies-harder", "--find-renames", "--full-index"]
     args.extend(extra_args)
 
     with in_prj_dir_venv(project_path):
-        output = sh_exit_if_git_err(370, "git diff", extra_args=args, exit_on_err=False)
+        output = run_git_traced(370, "git", "diff", *args, exit_on_err=False)
 
     return output
 
@@ -464,7 +472,7 @@ def git_fetch(project_path: str, *extra_args: str, exit_on_err: bool = False) ->
     :return:                    list of lines from the console output that record an error (e.g. if no .git folder).
     """
     with in_prj_dir_venv(project_path):
-        output = sh_exit_if_git_err(375, "git fetch", extra_args=extra_args, exit_on_err=exit_on_err)
+        output = run_git_traced(375, "git", "fetch", *extra_args, exit_on_err=exit_on_err)
 
     return [_ for _ in output if _.lstrip().startswith((EXEC_GIT_ERR_PREFIX, "!", 'fatal:'))]
 
@@ -486,14 +494,14 @@ def git_init_if_needed(project_path: str,
 
     with in_prj_dir_venv(project_path):
         # the next two config commands prevent error in test systems/containers
-        sh_exit_if_git_err(351, "git init")
+        run_git_traced(351, "git", "init")
         if author:
-            sh_exit_if_git_err(352, "git config", extra_args=("user.name", author))
+            run_git_traced(352, "git", "config", "user.name", author)
         if email:
-            sh_exit_if_git_err(353, "git config", extra_args=("user.email", email))
+            run_git_traced(353, "git", "config", "user.email", email)
         if main_branch:
-            sh_exit_if_git_err(354, "git checkout", extra_args=("-b", main_branch))
-        sh_exit_if_git_err(355, "git commit", extra_args=("--allow-empty", "--message", "git repo initialization"))
+            run_git_traced(354, "git", "checkout", "-b", main_branch)
+        run_git_traced(355, "git", "commit", "--allow-empty", "--message", "git repo initialization")
 
     return True
 
@@ -512,7 +520,7 @@ def git_merge(project_path: str, from_branch: str, *extra_options: str,
     :param commit_msg_file:     name of the git commit message file (default=:data:`aedev.base.COMMIT_MSG_FILE_NAME`).
     :param exit_on_err:         specify True to exit the Python app on any git push error.
     :return:                    list with output lines of the git merge command (like returned by the function
-                                :func:`sh_exit_if_git_err`, used to execute this git command).
+                                :func:`run_git_traced`, used to execute this git command).
                                 if the git command returned with an error code and the argument in
                                 :paramref:`.exit_on_err` got not specified or as a `True` argument, then
                                 the app will quit. if :paramref:`.exit_on_err` got specified as 'False' and
@@ -528,7 +536,7 @@ def git_merge(project_path: str, from_branch: str, *extra_options: str,
     extra_args += extra_options + ("--log", "--no-stat", from_branch)
 
     with in_prj_dir_venv(project_path):
-        output = sh_exit_if_git_err(377, "git merge", extra_args=extra_args, exit_on_err=exit_on_err)
+        output = run_git_traced(377, "git", "merge", *extra_args, exit_on_err=exit_on_err)
 
     return output
 
@@ -543,7 +551,7 @@ def git_push(project_path: str, remote_repo_url: str, *options_and_refs: str, ex
                                 "--set-upstream" or "-u", and any references like branch/tag names to be pushed.
     :param exit_on_err:         specify False to not exit the Python app on any git push error.
     :return:                    list with output lines of the git push command (like returned by the function
-                                :func:`sh_exit_if_git_err`, used to execute this git push command).
+                                :func:`run_git_traced`, used to execute this git push command).
                                 if git push returned with an error code and the argument in
                                 :paramref:`.exit_on_err` got not specified or as a `True` argument, then
                                 the app will quit. if :paramref:`.exit_on_err` got specified as 'False' and
@@ -559,8 +567,7 @@ def git_push(project_path: str, remote_repo_url: str, *options_and_refs: str, ex
             refs.append(arg)
 
     with in_prj_dir_venv(project_path):
-        output = sh_exit_if_git_err(380, "git push",
-                                    extra_args=options + [remote_repo_url] + refs, exit_on_err=exit_on_err)
+        output = run_git_traced(380, "git", "push", *options, remote_repo_url, *refs, exit_on_err=exit_on_err)
 
     return output
 
@@ -575,8 +582,8 @@ def git_ref_in_branch(project_path: str, ref: str, branch: str = f'{GIT_REMOTE_O
     :return:                    boolean True if the ref got found in the branch, else False.
     """
     with in_prj_dir_venv(project_path):
-        extra_args = ("--all", "--contains", ref, "--format=%(refname:short)")
-        output = sh_exit_if_git_err(388, "git branch", extra_args=extra_args, exit_on_err=False)
+        output = run_git_traced(388, "git", "branch", "--all", "--contains", ref, "--format=%(refname:short)",
+                                     exit_on_err=False)
     return bool(output) and not output[0].startswith(EXEC_GIT_ERR_PREFIX) and branch in output
 
 
@@ -613,9 +620,9 @@ def git_remotes(project_path: str) -> GitRemotesType:
     remotes = {}
     if os_path_isdir(os_path_join(project_path, GIT_FOLDER_NAME)):
         with in_prj_dir_venv(project_path):
-            remote_ids = sh_exit_if_git_err(321, "git remote")
+            remote_ids = run_git_traced(321, "git", "remote")
             for remote_id in remote_ids:
-                remote_url = sh_exit_if_git_err(322, "git remote", extra_args=("get-url", "--push", remote_id))
+                remote_url = run_git_traced(322, "git", "remote", "get-url", "--push", remote_id)
                 remotes[remote_id] = remote_url[0]
     return remotes
 
@@ -652,14 +659,14 @@ def git_renew_remotes(project_path: str, origin_url: str, upstream_url: str = ""
         if upstream_url:
             if upstream_name not in remotes:
                 if upstream_url != origin_url:
-                    err.extend(sh_exit_if_git_err(340, "git remote", extra_args=("add", upstream_name, upstream_url)))
+                    err.extend(run_git_traced(340, "git", "remote", "add", upstream_name, upstream_url))
             elif remotes[upstream_name] != upstream_url:
-                err.extend(sh_exit_if_git_err(341, "git remote", extra_args=("set-url", upstream_name, upstream_url)))
+                err.extend(run_git_traced(341, "git", "remote", "set-url", upstream_name, upstream_url))
 
         if origin_name not in remotes:
-            err.extend(sh_exit_if_git_err(342, "git remote", extra_args=("add", origin_name, origin_url)))
+            err.extend(run_git_traced(342, "git", "remote", "add", origin_name, origin_url))
         elif remotes[origin_name] != origin_url:
-            err.extend(sh_exit_if_git_err(343, "git remote", extra_args=("set-url", origin_name, origin_url)))
+            err.extend(run_git_traced(343, "git", "remote", "set-url", origin_name, origin_url))
 
     return err
 
@@ -681,7 +688,7 @@ def git_status(project_path: str, verbose: bool = False) -> list[str]:
         args.append("--porcelain")
 
     with in_prj_dir_venv(project_path):
-        output = sh_exit_if_git_err(376, "git status", extra_args=args)
+        output = run_git_traced(376, "git", "status", *args)
 
     return output
 
@@ -703,7 +710,7 @@ def git_tag_add(project_path: str, tag: str, commit_msg_text: str = "", commit_m
         commit_msg_file = check_commit_msg_file(project_path, commit_msg_file=commit_msg_file)
         extra_args = ("--file", commit_msg_file)
     with in_prj_dir_venv(project_path):
-        output = sh_exit_if_git_err(387, "git tag --annotate", extra_args=extra_args + (tag, ))
+        output = run_git_traced(387, "git", "tag", "--annotate", *extra_args, tag)
     return output
 
 
@@ -723,17 +730,16 @@ def git_tag_list(project_path: str, remote="", tag_pattern: str = "*") -> list[s
 
     with in_prj_dir_venv(project_path):
         if remote:
-            output = sh_exit_if_git_err(389, "git ls-remote",
-                                        extra_args=("--tags", "--refs", "--sort=version:refname", remote, tag_pattern),
-                                        exit_on_err=False)
+            output = run_git_traced(389, "git", "ls-remote", "--tags", "--refs", "--sort=version:refname",
+                                    remote, tag_pattern,
+                                    exit_on_err=False)
             if output and output[0].startswith(EXEC_GIT_ERR_PREFIX):
                 output = []                                         # warning directly printed on console stderr
             else:
                 output = [line.split("\t")[-1].split("/")[-1] for line in output]
         else:
-            output = sh_exit_if_git_err(389, "git tag",
-                                        extra_args=("--list", "--sort=version:refname", tag_pattern),
-                                        exit_on_err=False)
+            output = run_git_traced(389, "git", "tag", "--list", "--sort=version:refname", tag_pattern,
+                                    exit_on_err=False)
             if output and output[0].startswith(EXEC_GIT_ERR_PREFIX):
                 output = []
 
@@ -773,8 +779,7 @@ def git_uncommitted(project_path: str) -> set[str]:
         return set()
 
     with in_prj_dir_venv(project_path):
-        output = sh_exit_if_git_err(379, "git status",
-                                    extra_args=("--find-renames", "--untracked-files=all", "--porcelain"))
+        output = run_git_traced(379, "git", "status", "--find-renames", "--untracked-files=all", "--porcelain")
     return {_[3:] for _ in output}
 
 
@@ -868,7 +873,7 @@ def pip_install(project_path: str, *required_projects: str, cooldown_period: str
 
     out: list[str] = []
     with in_prj_dir_venv(project_path):
-        err = sh_exec(PIP_CMD, extra_args=["install"] + args + list(required_projects), output_lines=out)
+        err = run_cmd(PIP_CMD, "install", *args, *required_projects, output_lines=out)
     outdated = {}
     if err == 0 and out:
         for item in json.loads(" ".join(out)).get("install", []):
@@ -882,38 +887,26 @@ def pip_install(project_path: str, *required_projects: str, cooldown_period: str
     return outdated
 
 
-# pylint: disable-next=too-many-arguments,too-many-positional-arguments,too-many-locals
-def sh_exit_if_git_err(err_code: int, command_line: str,
-                       extra_args: Iterable[str] = (), output_lines: list[str] | None = None, exit_on_err: bool = False,
-                       app_obj: ConsoleApp | UnsetType | None = None, log_enable_dir: str = "") -> list[str]:
-    """ execute git command with optional git trace output, returning the stdout lines cleaned from any trace messages.
+# pylint: disable=too-many-locals
+def run_git_traced(err_code: int, *cmd_args: str, exit_on_err: bool = False, log_enable_dir: str = "") -> list[str]:
+    """ run git command with optional git trace output, returning the stdout lines cleaned from any git trace messages.
 
-    :param err_code:            error code to pass to the console as exit code if :paramref:`.exit_on_err` is True.
-    :param command_line:        command line string to execute on the console/shell. could contain command line args
-                                separated by whitespace characters (alternatively use :paramref:`.extra_args`).
-    :param extra_args:          optional iterable of extra command line arguments.
-    :param output_lines:        optional list to return the lines printed to stdout/stderr on execution.
-                                by passing an empty list, the stdout and stderr streams/pipes will be separated,
-                                resulting in having the stderr output lines at the end of the list. specify at
-                                least on list item to merge-in the stderr output (into the stdout output and return).
+    :param err_code:            error code to be passed onto the console as exit code if the git command set an error
+                                code and the :paramref:`.exit_on_err` argument is either `True` or a nonempty string.
+    :param cmd_args:            command line string or a sequence of command name and separate line arguments
+                                to be run/executed on the console/shell.
     :param exit_on_err:         pass True to exit the app on error.
-    :param app_obj:             optional :class:`~ae.console.ConsoleApp` instance, used for logging.
-                                if not specified or None then the Python :func:`print` function is used.
-                                specify :data:`~ae.base.UNSET` to suppress any printing/logging output.
-    :param app_obj:             :class:`~ae.console.ConsoleApp` instance, for logging and ignorable-error-checks.
     :param log_enable_dir:      pass the path of the directory in which git shell command logging have to get enabled.
     :return:                    output lines of git command - cleaned from GIT_TRACE messages,
                                 if :paramref:`.exit_on_err` got specified as 'False' and the executed
                                 git command returned an error code, then the error code will be returned in the first
                                 line/list-item (prefixed with :data:`EXEC_GIT_ERR_PREFIX`).
+    :raises:                    AssertationError if first argument of :paramref:`.cmd_args` is not "git".
     """
-    if output_lines is None:
-        output_lines = []
-    if app_obj is None:
-        app_obj = cast(ConsoleApp, main_app_instance())
+    assert cmd_args and cmd_args[0] == "git", f"git command expected by run_git_traced({err_code=}, {cmd_args=})"
+    output_lines: list[str] = []
+    app_obj = cast(ConsoleApp, main_app_instance())
     git_debug = isinstance(app_obj, AppBase) and app_obj.verbose
-    print_out = dummy_function if app_obj is UNSET else app_obj.po if isinstance(app_obj, ConsoleApp) else print
-    debug_out = dummy_function if app_obj is UNSET else app_obj.vpo if isinstance(app_obj, ConsoleApp) else print
     git_trace_vars = ('GIT_TRACE', 'GIT_TRACE_PACK_ACCESS', 'GIT_TRACE_PACKET', 'GIT_TRACE_SETUP')
     env_vars = {'GIT_TERMINAL_PROMPT': "0"}
     if git_debug:
@@ -921,38 +914,37 @@ def sh_exit_if_git_err(err_code: int, command_line: str,
         env_vars['GIT_MERGE_VERBOSITY'] = "5"
         for var in git_trace_vars:
             env_vars[var] = "1"
+    print_out = app_obj.po if isinstance(app_obj, ConsoleApp) else print
+    debug_out = app_obj.vpo if isinstance(app_obj, ConsoleApp) else print
 
-    cl_err = sh_exit_if_exec_err(err_code, command_line,
-                                 extra_args=extra_args, output_lines=output_lines, exit_on_err=exit_on_err,
-                                 app_obj=app_obj, env_vars={**os.environ, **env_vars}, err_redirect=subprocess.PIPE)
+    cl_err = run_logged_cmd(err_code, *cmd_args,
+                            output_lines=output_lines, exit_on_err=exit_on_err, app_obj=app_obj,
+                            env={**os.environ, **env_vars}, stderr=subprocess.PIPE)
 
     if log_files := sh_logs(log_enable_dir=log_enable_dir, log_name_prefix='git'):
-        sh_log(command_line, extra_args=extra_args, cl_err=cl_err, output_lines=output_lines, log_file_paths=log_files)
+        sh_log(*cmd_args, cl_err=cl_err, output_lines=output_lines, log_file_paths=log_files)
 
     if cl_err:  # if cl_err and exit_on_err then it would have exit the Python interpreter (so never would run to here)
-        cmd_line = mask_token([command_line] + list(extra_args))
+        cmd_line = mask_token(cmd_args)
         debug_out(f"    # ignored error {cl_err} of `{cmd_line}` and git trace {env_vars=}")
         output_lines.insert(0, EXEC_GIT_ERR_PREFIX + str(cl_err) + f" in {cmd_line}")
 
-    start = next((_idx for _idx, _item in enumerate(output_lines) if _item == STDERR_BEG_MARKER), -1)  # lines.find()
+    start = list_find(output_lines, STDERR_BEG_MARKER)
     if start >= 0:
-        if git_debug or any(os.environ.get(_, "0") in ("true", "1", "2") for _ in git_trace_vars):
-            sep = " " * 6
-            print_out(sep + "git trace output:")
+        if git_debug or any(os.environ.get(_var, "0") in ("true", "1", "2") for _var in git_trace_vars):
+            print_out(" " * 6 + "git trace output:")
             for line_no in range(start + 1, len(output_lines) - 1):
-                print_out(sep + output_lines[line_no])
+                print_out(" " * 6 + output_lines[line_no])
         output_lines[:] = output_lines[:start]      # remove stderr messages from returned console output
 
     return mask_token(output_lines)
 
 
-# pylint: disable-next=too-many-arguments,too-many-positional-arguments
-def sh_log(comment_or_command: str, extra_args: Iterable[str] = (), cl_err: int = 0, output_lines: Iterable[str] = (),
+def sh_log(*cmd_args: str, cl_err: int = 0, output_lines: Iterable[str] = (),
            log_file_paths: Iterable[str] = (), log_name_prefix: str = ""):
     """ append a log entry to each existing/enabled shell command log file.
 
-    :param comment_or_command:  command line or comment line (if starts with the # character).
-    :param extra_args:          extra arguments (added to the command line).
+    :param cmd_args:            command line arguments or comment line (if cmd_args[0] starts with a # character).
     :param cl_err:              command exit code.
     :param output_lines:        console output lines.
     :param log_file_paths:      log file paths - if specified then the search of the default locations for log files
@@ -960,12 +952,10 @@ def sh_log(comment_or_command: str, extra_args: Iterable[str] = (), cl_err: int 
     :param log_name_prefix:     log file name prefix. extended with the :data:`SHELL_LOG_FILE_NAME_SUFFIX` results in
                                 the file name to search for (and to log into if exists).
     """
-    if not comment_or_command.startswith("#"):
-        comment_or_command = " > " + comment_or_command
-
     sep = os.linesep
     log_lines = (now_str(sep='-') + sep +
-                 comment_or_command + " " + " ".join('"' + _ + '"' if " " in _ else _ for _ in extra_args) + sep +
+                 (" > " if cmd_args[0].startswith("#") else "") + cmd_args[0] +
+                 " ".join('"' + _arg + '"' if " " in _arg else _arg for _arg in cmd_args[1:]) + sep +
                  (f" * {cl_err=}" + sep if cl_err else "") +
                  ("   " + (sep + "   ").join(output_lines) + sep if output_lines else ""))
 
@@ -1095,7 +1085,7 @@ def venv_module_var_val(import_name: str, var_name: str, cwd: str = ".", venv_id
     code = f"from ae.system import module_attr; print(module_attr('{import_name}', '{var_name}'))"
     output: list[str] = []
     with in_prj_dir_venv(project_path=cwd, venv_id=venv_id):
-        sh_exit_if_exec_err(324, f'python -c "{code}"', output_lines=output, err_redirect=None)
+        run_logged_cmd(324, "python", "-c", code, output_lines=output, stderr=None)
 
     for line in output:
         try:
@@ -1159,37 +1149,33 @@ def venv_os_env_vars(venv_id: str, app_obj: ConsoleApp | UnsetType | None = None
         debug_out(f"    * the {venv_id=} does not exist ({os_env_venv()=} {os.getcwd()=})")
         return {}
 
-    exec_kwargs = venv_sh_exec_kwargs(bin_path, app_obj=app_obj)
-    if not exec_kwargs:
-        debug_out(f"    # empty sh_exec-kwargs to set OS-env-vars of {venv_id=} ({os_env_venv()=} {bin_path=})")
+    run_args, run_kwargs = venv_run_cmd_args(bin_path, app_obj)
+    if not run_args:
+        debug_out(f"    # empty run-args to set OS-env-vars {venv_id=} ({os_env_venv()=} {bin_path=} {run_kwargs=})")
         return {}
 
-    debug_out(f"    - setting {venv_id=} in OS env vars ({os_env_venv()=} {os.getcwd()=} {bin_path=} {exec_kwargs=})")
-
-    output: list[str] = []    # inspired by Aundre's answer in https://stackoverflow.com/questions/7040592
-    sh_exit_if_exec_err(323, "", **exec_kwargs, output_lines=output, err_redirect=subprocess.PIPE)
-
-    if not output:
-        debug_out(f"    # {venv_id=}-specific OS env vars not found ({os_env_venv()=} {bin_path=} {exec_kwargs=})")
-        return {}
+    debug_out(f"    - setting {venv_id=} in OS env vars ({os_env_venv()=} {os.getcwd()=} {bin_path=} {run_kwargs=})")
+    output: list[str] = []
+    run_logged_cmd(323, *run_args, **run_kwargs, output_lines=output, stderr=subprocess.PIPE)
+    debug_out(f"    = set/changed OS env vars {output=}")
 
     env_var_lines = [line.strip() for line in output]
     return dict(line.split("=", maxsplit=1) for line in env_var_lines
                 if "=" in line and not line.startswith("="))
 
 
-def venv_sh_exec_kwargs(bin_path: str, app_obj: AppBase | UnsetType | None = None) -> dict[str, Any]:
-    """ determine the kwargs to be passed onto a call of :func:`ae.sh_exec` to set OS-env vars of a VENV.
+def venv_run_cmd_args(bin_path: str, app_obj: AppBase | UnsetType | None) -> tuple[list[str], dict[str, Any]]:
+    """ determine the kwargs to be passed onto a call of :func:`ae.run_cmd` to set OS-env vars of a VENV.
 
     :param bin_path:            the `bin`/`Scripts` folder path of the VENV.
     :param app_obj:             optional :class:`~ae.core.AppBase` instance, used for logging/console output.
-    :return:                    OS- and VENV-specific command line and extra args to be passed to :func:`ae.sh_exec`
+    :return:                    OS- and VENV-specific command line and extra args to be passed to :func:`ae.run_cmd`
                                 in order to set the VENV-specific OS-environment variables.
     """
     env_root = os_path_dirname(bin_path)
     print_out = dummy_function if app_obj is UNSET else app_obj.po if isinstance(app_obj, AppBase) else print
     debug_out = dummy_function if app_obj is UNSET else app_obj.vpo if isinstance(app_obj, AppBase) else print
-    exec_kwargs: dict[str, Any] = {'app_obj': app_obj}
+    run_kwargs: dict[str, Any] = {'app_obj': app_obj}
     is_conda = os_path_isdir(os_path_join(env_root, 'conda-meta'))
 
     if sys.platform == 'win32':
@@ -1202,21 +1188,22 @@ def venv_sh_exec_kwargs(bin_path: str, app_obj: AppBase | UnsetType | None = Non
 
     else:
         sh_cmd = '/bin/sh' if os_path_isfile('/bin/sh') else 'bash'
-        exec_kwargs['decoder_splitter'] = output_zero_split
+        run_kwargs['decoder_splitter'] = output_zero_split
         if is_conda:
             activate_path = ""
             activate_cmd = f'eval "$(conda shell.posix hook)" && conda activate {shlex.quote(env_root)}'
-            exec_kwargs['shell'] = True  # shell=True because shell function `conda activate` is defined by the eval cmd
+            run_kwargs['shell'] = True  # shell=True because shell function `conda activate` is defined by the eval cmd
         else:
             activate_path = os_path_join(bin_path, 'activate')
             activate_cmd = f"source {shlex.quote(activate_path)}"
+        # get changed vars, w/ line-seps, inspired by Aundre's answer in https://stackoverflow.com/questions/7040592
         activate_cmd = f"env -i {sh_cmd} -c 'set -a && {activate_cmd} && env -0'"
 
-    exec_kwargs['extra_args'] = shlex.split(activate_cmd)
-    debug_out(f"    = venv_sh_exec_kwargs() compiled the {exec_kwargs=} for VENV in {bin_path=}")
+    run_args = shlex.split(activate_cmd)
+    debug_out(f"    = venv_run_cmd_args() compiled the {run_args=} and {run_kwargs=} for VENV in {bin_path=}")
 
     if activate_path and not os_path_isfile(activate_path):
         print_out(f"    * activation script path '{activate_path}' not found for VENV in {bin_path=}")
-        return {}
+        return [], {}
 
-    return exec_kwargs
+    return run_args, run_kwargs
