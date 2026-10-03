@@ -28,7 +28,7 @@ from ae.core import (
     DEBUG_LEVEL_DISABLED, DEBUG_LEVEL_ENABLED, DEBUG_LEVEL_VERBOSE,
     main_app_instance, temp_context_cleanup, temp_context_get_or_create)
 from ae.console import MAIN_SECTION_NAME, ConsoleApp
-from ae.shell import debug_or_verbose, get_domain_user_var, hint, sh_exec, sh_exit_if_exec_err
+from ae.shell import debug_or_verbose, get_domain_user_var, hint, run_cmd, run_logged_cmd
 from aedev.base import COMMIT_MSG_FILE_NAME, DEF_MAIN_BRANCH, TEST_PROJECTS_NAMESPACE, code_file_version
 
 from aedev.commands import (
@@ -41,8 +41,8 @@ from aedev.commands import (
     git_current_branch, git_diff, git_fetch, git_init_if_needed, git_merge, git_push, git_ref_in_branch,
     git_remote_domain_group, git_remotes, git_renew_remotes,
     git_status, git_tag_add, git_tag_list, git_tag_remotes, git_uncommitted,
-    in_prj_dir_venv, in_venv, owner_project_from_url, pip_install, sh_exit_if_git_err, sh_log, sh_logs,
-    venv_bin_path, venv_check_prefixes, venv_module_var_val, venv_name, venv_os_env_vars, venv_sh_exec_kwargs)
+    in_prj_dir_venv, in_venv, owner_project_from_url, pip_install, run_git_traced, sh_log, sh_logs,
+    venv_bin_path, venv_check_prefixes, venv_module_var_val, venv_name, venv_os_env_vars, venv_run_cmd_args)
 
 
 # initialize test environment and declare test constants and fixtures (reduced tests on GitLab CI)
@@ -100,11 +100,11 @@ def _init_repo(pkg_name: str = ""):
         write_file(os_path_join(project_path, '.gitignore'),
                    COMMIT_MSG_FILE_NAME + "\n" + 'IgnoreD' + "\n", make_dirs=True)
         with in_prj_dir_venv(project_path):
-            sh_exec("git init")
-            sh_exec("git config", extra_args=("user.email", "testy@test.tst"))
-            sh_exec("git config", extra_args=("user.name", "TestUserName"))
-            sh_exec("git checkout", extra_args=("-b", DEF_MAIN_BRANCH))
-            sh_exec("git commit", extra_args=("-v", "--allow-empty", "-m", "unit tst repo init"))
+            run_cmd("git", "init")
+            run_cmd("git", "config", "user.email", "testy@test.tst")
+            run_cmd("git", "config", "user.name", "TestUserName")
+            run_cmd("git", "checkout", "-b", DEF_MAIN_BRANCH)
+            run_cmd("git", "commit", "-v", "--allow-empty", "-m", "unit tst repo init")
         yield project_path
 
 
@@ -124,8 +124,8 @@ def changed_repo_path():
             write_file(os_path_join(project_path, 'deleteD.x'), "--will be deleted")
             write_file(os_path_join(project_path, 'rename.it'), "! will be renamed")
 
-            sh_exec("git add", extra_args=["-A"])
-            sh_exec("git commit", extra_args=["-m", "git commit message"])
+            run_cmd("git", "add", "-A")
+            run_cmd("git", "commit", "-m", "git commit message")
 
             write_file(os_path_join(project_path, 'addEd.ooo'), "# added/staged to repo")
             write_file(os_path_join(project_path, 'ChangeD.y'), "# got changed")
@@ -147,7 +147,7 @@ class TestGitCommands:
     def test_a_pre_test_if_git_cl_is_setup_on_system(self, capsys):
         output = []
 
-        assert sh_exec("git", extra_args=("--version",), output_lines=output) == 0
+        assert run_cmd("git", "--version", output_lines=output) == 0
 
         assert output
         with capsys.disabled():
@@ -161,10 +161,8 @@ class TestGitCommands:
             return git_diff(changed_repo_path, "--name-only", *_args)
 
         def _git_lsf(*_args) -> list:
-            _output = []
             with in_prj_dir_venv(changed_repo_path):
-                sh_exit_if_git_err(0, "git ls-files", extra_args=_args, output_lines=_output)
-            return _output
+                return run_git_traced(0, "git", "ls-files", *_args)
 
         def _git_sta() -> list:
             gst = git_status(changed_repo_path)
@@ -849,7 +847,7 @@ class TestGitCommands:
     def test_git_ls_files_vs_git_status(self, cons_app, empty_repo_path):
         ls_uncommitted = []
         with in_prj_dir_venv(empty_repo_path):
-            sh_exit_if_exec_err(0, "git ls-files -m", output_lines=ls_uncommitted, err_redirect=subprocess.STDOUT)
+            run_logged_cmd(0, "git", "ls-files", "-m", output_lines=ls_uncommitted, stderr=subprocess.STDOUT)
         assert ls_uncommitted == []
 
         st_uncommitted = git_status(empty_repo_path)
@@ -861,7 +859,7 @@ class TestGitCommands:
         ls_uncommitted = []
 
         with in_prj_dir_venv(changed_repo_path):
-            sh_exit_if_exec_err(0, "git ls-files -m", output_lines=ls_uncommitted, err_redirect=subprocess.STDOUT)
+            run_logged_cmd(0, "git", "ls-files", "-m", output_lines=ls_uncommitted, stderr=subprocess.STDOUT)
 
         st_uncommitted = [_[3:] for _ in git_status(changed_repo_path)]
 
@@ -904,8 +902,22 @@ class TestGitCommands:
         assert output and any("Fast-forward (no commit created; -m option ignored)" in _ for _ in output)
         assert read_file(os_path_join(changed_repo_path, 'ChangeD.y')) == changed_file_content
 
+    def test_git_push(self):
+        with patch('aedev.commands.run_git_traced') as mock_run:
+            git_push("", 'tst_repo_url', '-tst_option1', 'tst_ref', '--tst_option2', exit_on_err=False)
+
+        mock_run.assert_called_once()
+        assert "git" in mock_run.call_args_list[0].args
+        assert "push" in mock_run.call_args_list[0].args
+        assert 'tst_repo_url' in mock_run.call_args_list[0].args
+        assert 'tst_ref' in mock_run.call_args_list[0].args
+        assert '-tst_option1' in mock_run.call_args_list[0].args
+        assert '--tst_option2' in mock_run.call_args_list[0].args
+        assert 'exit_on_err' in mock_run.call_args_list[0].kwargs
+        assert mock_run.call_args_list[0].kwargs['exit_on_err'] is False
+
     @skip_if_not_maintainer
-    def test_git_push(self, cons_app, cloned_repo_project_dir):     # cons_app has to be before cloned_repo_project_dir
+    def test_git_push_int(self, cons_app, cloned_repo_project_dir):  # cons_app has to be before cloned_repo_project_dir
         now = datetime.datetime.now(tz=datetime.timezone.utc)
         version = now.strftime("%y%m%d.%H%M.%S")
         new_branch = f"git_push_unit_test_{version}"
@@ -1009,7 +1021,7 @@ class TestGitCommands:
         assert GIT_REMOTE_UPSTREAM not in new_remotes
 
         with in_prj_dir_venv(changed_repo_path):
-            sh_exit_if_git_err(42333, "git remote", extra_args=("add", GIT_REMOTE_UPSTREAM, 'upstream-url'))
+            run_git_traced(42333, "git", "remote", "add", GIT_REMOTE_UPSTREAM, 'upstream-url')
         new_remotes = git_remotes(changed_repo_path)
         assert GIT_REMOTE_ORIGIN in new_remotes
         assert new_remotes[GIT_REMOTE_ORIGIN] == 'origin-url' + ".git"
@@ -1025,7 +1037,7 @@ class TestGitCommands:
         assert new_remotes[GIT_REMOTE_UPSTREAM] == 'new-up-url' + ".git"
 
         with in_prj_dir_venv(changed_repo_path):
-            sh_exit_if_git_err(42333, "git remote", extra_args=("remove", GIT_REMOTE_UPSTREAM))
+            run_git_traced(42333, "git", "remote", "remove", GIT_REMOTE_UPSTREAM)
         new_remotes = git_remotes(changed_repo_path)
         assert GIT_REMOTE_ORIGIN in new_remotes
         assert new_remotes[GIT_REMOTE_ORIGIN] == 'new-ori-url' + ".git"
@@ -1124,14 +1136,14 @@ class TestGitCommands:
 
         assert git_tag_list(changed_repo_path, remote=GIT_REMOTE_ORIGIN) == []
         assert git_tag_list(changed_repo_path, remote=GIT_REMOTE_UPSTREAM) == []
-        with patch('aedev.commands.sh_exit_if_git_err', return_value=["ref-id\trefs/heads/branch_name"]):
+        with patch('aedev.commands.run_git_traced', return_value=["ref-id\trefs/heads/branch_name"]):
             assert git_tag_list(changed_repo_path, remote=GIT_REMOTE_UPSTREAM) == ['branch_name']
 
         assert git_tag_list(changed_repo_path, tag_pattern="*xxx") == []
         assert git_tag_list(changed_repo_path, tag_pattern="xxx*") == []
         assert git_tag_list(changed_repo_path, tag_pattern=GIT_VERSION_TAG_PREFIX + "*") == []
 
-        with patch('aedev.commands.sh_exit_if_git_err', return_value=['tst tag lst']):
+        with patch('aedev.commands.run_git_traced', return_value=['tst tag lst']):
             assert git_tag_list(changed_repo_path) == ['tst tag lst']
 
     def test_git_tag_list_errors(self, changed_repo_path, cons_app):
@@ -1142,14 +1154,14 @@ class TestGitCommands:
 
         assert git_tag_list(changed_repo_path, remote=GIT_REMOTE_ORIGIN) == []
         assert git_tag_list(changed_repo_path, remote=GIT_REMOTE_UPSTREAM) == []
-        with patch('aedev.commands.sh_exit_if_git_err', return_value=["ref-id\trefs/heads/branch_name"]):
+        with patch('aedev.commands.run_git_traced', return_value=["ref-id\trefs/heads/branch_name"]):
             assert git_tag_list(changed_repo_path, remote=GIT_REMOTE_UPSTREAM) == ['branch_name']
 
         assert git_tag_list(changed_repo_path, tag_pattern="*xxx") == []
         assert git_tag_list(changed_repo_path, tag_pattern="xxx*") == []
         assert git_tag_list(changed_repo_path, tag_pattern=GIT_VERSION_TAG_PREFIX + "*") == []
 
-        with patch('aedev.commands.sh_exit_if_git_err', return_value=[EXEC_GIT_ERR_PREFIX + str(999) + "tst err msg"]):
+        with patch('aedev.commands.run_git_traced', return_value=[EXEC_GIT_ERR_PREFIX + str(999) + "tst err msg"]):
             assert git_tag_list(changed_repo_path) == []
 
     def test_git_tag_remotes(self, cons_app, empty_repo_path):
@@ -1270,11 +1282,11 @@ class TestHelpers:
             assert editable_project_root_path(prj) == norm_path(os_path_join("~", DEF_PROJECT_PARENT_FOLDER, prj))
 
     def test_editable_project_root_path_returned(self):
-        def _sh_exec_mock(_cmd_line: str, output_lines: list[str], **_kwargs) -> int:
+        def _run_cmd_mock(*_cmd_args: str, output_lines: list[str], **_kwargs) -> int:
             output_lines.append(PIP_EDITABLE_PROJECT_PATH_PREFIX + 'tst_ret_pth')
             return 0
 
-        with patch("aedev.commands.sh_exec", side_effect=_sh_exec_mock):
+        with patch("aedev.commands.run_cmd", side_effect=_run_cmd_mock):
             assert editable_project_root_path('any_prj_nam') == 'tst_ret_pth'
 
     def test_get_domain_user_var_from_cons_app_dotenv(self, cons_app, empty_repo_path):
@@ -1418,9 +1430,9 @@ class TestHelpers:
 
 
 class TestShellExecuteAndLogging:
-    def test_sh_exit_if_git_err_with_trace(self, cons_app):
+    def test_run_git_traced_with_trace(self, cons_app):
         with patch('ae.console.ConsoleApp.verbose', new_callable=PropertyMock, return_value=True):
-            output = sh_exit_if_git_err(0, "git", extra_args=("--version",), exit_on_err=False)
+            output = run_git_traced(0, "git", "--version", exit_on_err=False)
 
         assert output       # e.g. == ['git version 2.43.0']
         assert len(output) == 1
@@ -1428,7 +1440,7 @@ class TestShellExecuteAndLogging:
 
         # with explicit app_obj kwarg
         with patch('ae.console.ConsoleApp.verbose', new_callable=PropertyMock, return_value=True):
-            output = sh_exit_if_git_err(0, "git", extra_args=("--version",), exit_on_err=False, app_obj=cons_app)
+            output = run_git_traced(0, "git", "--version", exit_on_err=False)
 
         assert output       # e.g. == ['git version 2.43.0']
         assert len(output) == 1
@@ -1467,7 +1479,7 @@ class TestShellExecuteAndLogging:
         sh_logs(log_enable_dir=log_dir)
 
         with in_wd(log_dir):
-            sh_log(log_comment, extra_args=[url_w_tok, url_w_tok], cl_err=99, output_lines=[url_w_tok])
+            sh_log(log_comment, url_w_tok, url_w_tok, cl_err=99, output_lines=[url_w_tok])
 
         assert os_path_isfile(log_file)
         log_content = read_file(log_file)
@@ -1595,15 +1607,15 @@ class TestVenvCI:     # venv tests that are running also on the repo/CI host
         with patch('aedev.commands.venv_bin_path', return_value=f"/path/to/{venv_id}/bin"):
             assert venv_os_env_vars(venv_id) == {}
 
-            with patch('aedev.commands.venv_sh_exec_kwargs', return_value={'exit_on_err': False}):
+            with patch('aedev.commands.venv_run_cmd_args', return_value=(["activate"], {'exit_on_err': False})):
                 assert venv_os_env_vars(venv_id) == {}
 
-                def _mock_sh_exec(*_args, output_lines, **_kwargs):
+                def _mock_run_cmd(*_args, output_lines, **_kwargs):
                     output_lines.append("removed")
                     output_lines.append('var_nam' + "=" + 'var_val')
                     output_lines.append("=removed")
 
-                with patch('aedev.commands.sh_exit_if_exec_err', new=_mock_sh_exec):
+                with patch('aedev.commands.run_logged_cmd', new=_mock_run_cmd):
                     assert venv_os_env_vars(venv_id) == {'var_nam': 'var_val'}
 
     def test_venv_os_env_vars_if_venv_is_not_installed(self, capsys, cons_app):
@@ -1643,25 +1655,25 @@ class TestVenvCI:     # venv tests that are running also on the repo/CI host
         assert out == ""
         assert err == ""
 
-    def test_venv_sh_exec_kwargs(self, capsys):
-        assert venv_sh_exec_kwargs("") == {}
+    def test_venv_run_cmd_args(self, capsys):
+        assert venv_run_cmd_args("", None) == ([], {})
 
         with patch('aedev.commands.sys.platform', new='win32'):
             bin_path = '/not/existing/path/to/venv/bin'
-            assert venv_sh_exec_kwargs(bin_path) == {}
+            assert venv_run_cmd_args(bin_path, None) == ([], {})
             out, err = capsys.readouterr()
             assert bin_path in out
             assert 'not found for VENV' in out
             assert err == ""
 
             with patch('aedev.commands.os_path_isdir', return_value=True):  # mock is_conda==True
-                assert venv_sh_exec_kwargs(bin_path) == {}  # os_path_isdir(activate_path) is False
+                assert venv_run_cmd_args(bin_path, None) == ([], {})  # os_path_isdir(activate_path) is False
 
         with patch('aedev.commands.os_path_isdir', return_value=True):  # mock is_conda==True under Linux/MacOS
-            assert venv_sh_exec_kwargs(bin_path) != {}
-            assert 'app_obj' in venv_sh_exec_kwargs(bin_path)
-            assert 'shell' in venv_sh_exec_kwargs(bin_path)
-            assert os_path_dirname(bin_path) in venv_sh_exec_kwargs(bin_path)['extra_args'][-1]
+            assert venv_run_cmd_args(bin_path, None)[0] != []
+            assert 'app_obj' in venv_run_cmd_args(bin_path, None)[1]
+            assert 'shell' in venv_run_cmd_args(bin_path, None)[1]
+            assert os_path_dirname(bin_path) in venv_run_cmd_args(bin_path, None)[0][-1]
 
 
 @skip_gitlab_ci             # venv tests that run only on local machine because pyenv is not available on GitLab CI
@@ -1891,16 +1903,17 @@ class TestVenvIntegration:
         assert out == ""
         assert err == ""
 
-    def test_venv_sh_exec_kwargs(self, capsys):
+    def test_venv_run_cmd_args(self, capsys):
         bin_path = venv_bin_path(os_env_venv())
-        kwargs = venv_sh_exec_kwargs(bin_path)
+        args, kwargs = venv_run_cmd_args(bin_path, None)
 
+        assert args
+        assert os_path_dirname(bin_path) in args[-1]
         assert kwargs != {}
         assert 'app_obj' in kwargs
         assert 'shell' not in kwargs or kwargs['shell'] is True
-        assert os_path_dirname(bin_path) in kwargs['extra_args'][-1]
 
         out, err = capsys.readouterr()
         assert bin_path in out
-        assert '= venv_sh_exec_kwargs() compiled the exec_kwargs=' in out
+        assert '= venv_run_cmd_args() compiled the run_args=' in out
         assert err == ""
