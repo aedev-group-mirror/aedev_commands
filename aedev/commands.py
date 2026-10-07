@@ -63,7 +63,7 @@ the --debug_level/-D option specified.
 * :func:`git_merge`: merge current worktree with the specified [remote/]branch (exit app if an error occurred).
 * :func:`git_push`: executes the `git push` command.
 * :func:`git_ref_in_branch`: check if branch/tag/ref is in the specified branch.
-* :func:`git_remote_domain_group: determine the domain and the repository owner group-/user-name from .git/config.
+* :func:`git_remote_domain_group`: determine the domain and the repository owner group-/user-name from .git/config.
 * :func:`git_remotes`: retrieves the remote URLs of the repository.
 * :func:`git_renew_remotes`: renew the origin remote and optionally (if repo is forked) also the upstream remote.
 * :func:`git_status`: get the status of the project repository.
@@ -108,15 +108,15 @@ these helper functions are provided to assist with the management of Python virt
 * :func:`venv_bin_path`: determines the bin/scripts path of a Python virtual environment.
 * :func:`venv_check_prefixes`: determine the possible VENV root/prefix paths of all the supported VENV systems.
 * :func:`venv_module_var_val`: determine a variable value declared in a Python module, installed in any other VENV.
-* :func:`venv_name: determine the name/id of the current VENV used by a project.
+* :func:`venv_name`: determine the name/id of the current VENV used by a project.
 * :func:`venv_os_env_vars`: returns the OS environment variables of a VENV (Python virtual environment).
-* :func:`venv_run_cmd_args: determine the :func:`run_cmd`-kwargs to set/switch the OS-env vars of a VENV.
+* :func:`venv_run_cmd_args`: determine the run shell command function args to set/switch the OS-env vars of a VENV.
 
 
 the following example is executing in project root the shell/console command: `pip install -r requirements.txt`
 in order to install the required packages of a project into its local virtual environment by
-using the :func:`in_prj_dir_venv` context manager together with the shell execution function :func:`run_cmd`
-and the constant :data:`~aedev.base.PIP_CMD` (which differs depending on your OS)::
+using the :func:`in_prj_dir_venv` context manager together with the shell command execution function
+:func:`~ae.shell.run_cmd` and the constant :data:`~aedev.base.PIP_CMD` (which differs depending on your OS)::
 
     with in_prj_dir_venv(project_root_path):
         sh_err = run_cmd(PIP_CMD, "install", "-r", "requirements.txt")
@@ -149,7 +149,7 @@ from ae.shell import (                                                          
 from aedev.base import COMMIT_MSG_FILE_NAME, DEF_MAIN_BRANCH, PIP_CMD                                   # type: ignore
 
 
-__version__ = '0.3.19'
+__version__ = '0.3.20'
 
 
 EXEC_GIT_ERR_PREFIX = "run_cmd() returned error "       #: for :func:`run_git_traced` to mark error in 1st output line
@@ -1165,12 +1165,12 @@ def venv_os_env_vars(venv_id: str, app_obj: ConsoleApp | UnsetType | None = None
 
 
 def venv_run_cmd_args(bin_path: str, app_obj: AppBase | UnsetType | None) -> tuple[list[str], dict[str, Any]]:
-    """ determine the kwargs to be passed onto a call of :func:`ae.run_cmd` to set OS-env vars of a VENV.
+    """ determine the args to call one of the shell command runner functions to set OS-env vars of a VENV.
 
     :param bin_path:            the `bin`/`Scripts` folder path of the VENV.
     :param app_obj:             optional :class:`~ae.core.AppBase` instance, used for logging/console output.
-    :return:                    OS- and VENV-specific command line and extra args to be passed to :func:`ae.run_cmd`
-                                in order to set the VENV-specific OS-environment variables.
+    :return:                    OS- and VENV-specific command line args to be passed to :func:`~ae.shell.run_logged_cmd`
+                                (or :func:`~ae.shell.run_cmd`) in order to set VENV-specific OS-environment variables.
     """
     env_root = os_path_dirname(bin_path)
     print_out = dummy_function if app_obj is UNSET else app_obj.po if isinstance(app_obj, AppBase) else print
