@@ -136,7 +136,7 @@ from urllib.parse import urlparse
 from typing import Any, cast
 
 from ae.base import (                                                                                   # type: ignore
-    DEF_PROJECT_PARENT_FOLDER, UNSET, UnsetType,
+    UNSET, UnsetType,
     dummy_function, extend_file, in_wd, list_find, norm_path, now_str,
     os_path_basename, os_path_dirname, os_path_expanduser, os_path_isdir, os_path_isfile, os_path_join,
     read_file, write_file)
@@ -144,12 +144,11 @@ from ae.system import norm_pip_name, os_env_venv, venv_prefix                   
 from ae.paths import path_folders                                                                       # type: ignore
 from ae.core import main_app_instance, temp_context_get_or_create, AppBase                              # type: ignore
 from ae.console import ConsoleApp                                                                       # type: ignore
-from ae.shell import (                                                                                  # type: ignore
-    STDERR_BEG_MARKER, hint, in_os_env, mask_token, output_zero_split, run_cmd, run_logged_cmd)
-from aedev.base import COMMIT_MSG_FILE_NAME, DEF_MAIN_BRANCH, PIP_CMD                                   # type: ignore
+from ae.shell import hint, in_os_env, mask_token, output_zero_split, run_cmd, run_logged_cmd            # type: ignore
+from aedev.base import COMMIT_MSG_FILE_NAME, DEF_MAIN_BRANCH, DEF_PROJECT_PARENT_FOLDER, PIP_CMD        # type: ignore
 
 
-__version__ = '0.3.20'
+__version__ = '0.3.21'
 
 
 EXEC_GIT_ERR_PREFIX = "run_cmd() returned error "       #: for :func:`run_git_traced` to mark error in 1st output line
@@ -287,8 +286,8 @@ def git_branch_files(project_path: str, branch_or_tag: str = DEF_MAIN_BRANCH, un
                                 to specify the changed files between version(s).
     :param skip_file_path:      called for each found file passing the file path relative to the project root folder
                                 (specified by the :paramref:`.project_path` argument), returning
-                                True to exclude/skip the file with passed file path.
-    :param untracked:           pass True to include untracked files from the returned result set.
+                                `True` to exclude/skip the file with passed file path.
+    :param untracked:           pass `True` to include untracked files from the returned result set.
     :return:                    set of file paths relative to worktree root specified by the project root path
                                 specified by the :paramref:`.project_path` argument.
 
@@ -340,8 +339,8 @@ def git_checkout(project_path: str, *extra_args: str,
     :param project_path:        path of the project root folder.
     :param extra_args:          additional arguments passed onto git checkout command.
     :param new_branch:          new branch name to create and check out.
-    :param exit_on_err:         specify False to not exit the Python app on any git checkout error.
-    :param force:               pass True to ignore uncommitted files and if undefined branch.
+    :param exit_on_err:         specify 'False' to not exit the Python app on any git checkout error.
+    :param force:               pass `True` to ignore uncommitted files and if undefined branch.
     :param remote_names:        iterable with the remote names. determined with :func:`git_remotes` if not specified.
     :return:                    error message or empty string if no error occurred.
     """
@@ -373,7 +372,7 @@ def git_clone(repo_parent_url: str, project_name: str, *extra_args: str,
     :param branch_or_tag:       repo branch to clone. if not specified then the main branch will be cloned.
     :param parent_path:         destination path on the local machine to clone onto. if not specified a temporary folder
                                 will be used.
-    :param enable_log:          pass True to enable git shell command logging.
+    :param enable_log:          pass `True` to enable git shell command logging.
     :return:                    path to the cloned repository folder or empty string if an error occurred.
 
     .. hint:: there could occur a user/password prompt if repo is private/invalid!
@@ -468,7 +467,7 @@ def git_fetch(project_path: str, *extra_args: str, exit_on_err: bool = False) ->
 
     :param project_path:        project root folder.
     :param extra_args:          additional options and arguments (remote name) for the git fetch command.
-    :param exit_on_err:         specify True to exit the Python app on any git fetch error.
+    :param exit_on_err:         specify `True` to exit the Python app on any git fetch error.
     :return:                    list of lines from the console output that record an error (e.g. if no .git folder).
     """
     with in_prj_dir_venv(project_path):
@@ -487,7 +486,7 @@ def git_init_if_needed(project_path: str,
     :param main_branch:         first main branch name to be checked out if repo did not exist / got created.
                                 if not specified then the value of :data:`aedev.base.DEF_MAIN_BRANCH` is used.
                                 pass empty string to not do the initial checkout on a not existing repository.
-    :return:                    boolean True if a new repo got created and initialized, else False.
+    :return:                    boolean `True` if a new repo got created and initialized, else 'False'.
     """
     if os_path_isdir(os_path_join(project_path, GIT_FOLDER_NAME)):
         return False
@@ -518,7 +517,7 @@ def git_merge(project_path: str, from_branch: str, *extra_options: str,
     :param commit_msg_text:     commit message used for the optional merge commit. if specified then the argument
                                 in :paramref:`.commit_msg_file` will be ignored.
     :param commit_msg_file:     name of the git commit message file (default=:data:`aedev.base.COMMIT_MSG_FILE_NAME`).
-    :param exit_on_err:         specify True to exit the Python app on any git push error.
+    :param exit_on_err:         specify `True` to exit the Python app on any git push error.
     :return:                    list with output lines of the git merge command (like returned by the function
                                 :func:`run_git_traced`, used to execute this git command).
                                 if the git command returned with an error code and the argument in
@@ -549,7 +548,7 @@ def git_push(project_path: str, remote_repo_url: str, *options_and_refs: str, ex
                                 a user token or password has to be included for the authentication against remote.
     :param options_and_refs:    extra arguments for the git command. pass additional options, e.g. "--delete" or
                                 "--set-upstream" or "-u", and any references like branch/tag names to be pushed.
-    :param exit_on_err:         specify False to not exit the Python app on any git push error.
+    :param exit_on_err:         specify 'False' to not exit the Python app on any git push error.
     :return:                    list with output lines of the git push command (like returned by the function
                                 :func:`run_git_traced`, used to execute this git push command).
                                 if git push returned with an error code and the argument in
@@ -579,7 +578,7 @@ def git_ref_in_branch(project_path: str, ref: str, branch: str = f'{GIT_REMOTE_O
     :param ref:                 any ref like a tag or another branch, to be searched within :paramref:`.branch`.
     :param branch:              branch to be searched in for :paramref:`.ref`. if not specified
                                 then it defaults to the remote/origin main branch.
-    :return:                    boolean True if the ref got found in the branch, else False.
+    :return:                    boolean `True` if the ref got found in the branch, else 'False'.
     """
     with in_prj_dir_venv(project_path):
         output = run_git_traced(388, "git", "branch", "--all", "--contains", ref, "--format=%(refname:short)",
@@ -675,7 +674,7 @@ def git_status(project_path: str, verbose: bool = False) -> list[str]:
     """ get the status of the project repository.
 
     :param project_path:        project root path.
-    :param verbose:             pass True to return a more verbose console output (using --branch -vv --porcelain=2).
+    :param verbose:             pass `True` to return a more verbose console output (using --branch -vv --porcelain=2).
     :return:                    console output of the git status command.
     """
     args = ["--find-renames",  "--untracked-files"]  # --untracked-files=normal is missing a full subdir-rel-file-path
@@ -813,16 +812,17 @@ def in_venv(venv_id: str = "") -> Iterator[None]:
         venv_id = venv_name()  # detect current VENV name from the cwd/project_path or above, or from the OS env vars
 
     env_obj = None
-    curr_id = os_env_venv()
-    if curr_id != venv_id:
-        env_obj = os.environ
-        os.environ = cast(Any, env_obj.copy())  # cast to _Environ
-        os.environ.update(venv_os_env_vars(venv_id))
+    try:
+        if os_env_venv() != venv_id:
+            env_obj = os.environ
+            os.environ = cast(Any, env_obj.copy())  # cast to _Environ
+            os.environ.update(venv_os_env_vars(venv_id))
 
-    yield
+        yield
 
-    if env_obj:
-        os.environ = env_obj
+    finally:    # ensure switchback to the old venv, e.g. in unit tests w/ assert in the `with in_venv()` block
+        if env_obj:
+            os.environ = env_obj
 
 
 def owner_project_from_url(remote_url: str) -> str:
@@ -832,7 +832,7 @@ def owner_project_from_url(remote_url: str) -> str:
     :return:                    the owner name and the project name, separated with a slash character.
     """
     url_parts = urlparse(remote_url)
-    url_path = url_parts.path
+    url_path: str = url_parts.path
     if url_path.startswith("/"):
         url_path = url_path[1:]
     if url_path.endswith(".git"):
@@ -850,15 +850,15 @@ def pip_install(project_path: str, *required_projects: str, cooldown_period: str
                                 :data:`~aedev.base.PROJECT_VERSION_SEP`).
     :param cooldown_period:     either ISO 8601 datetime (e.g., '2023-01-01T00:00:00Z') or number of days (e.g., 'P6D'
                                 for uploaded at least 6 days ago).
-    :param dry_run:             pass True to only check which (outdated) external Python projects would get installed.
-    :param force_reinstall:     pass True to force the reinstallation of the required/outdated project versions.
-    :param return_implicits:    pass True to return also implicit installed Python projects as comments.
+    :param dry_run:             pass `True` to only check which (outdated) external Python projects would get installed.
+    :param force_reinstall:     pass `True` to force the reinstallation of the required/outdated project versions.
+    :param return_implicits:    pass `True` to return also implicit installed Python projects as comments.
     :return:                    dict of installed/outdated projects, with their normalized pip name as keys
                                 and another/inner dict as values. the inner dict provides a "version" key
-                                with the installed/found version as value. if True got specified for the
+                                with the installed/found version as value. if `True` got specified for the
                                 :paramref:`.return_implicits` argument, then also a "requested" key
-                                will be available in the inner dict with a boolean value, which is True for
-                                explicit installed/requiered projects and False for implicit ones.
+                                will be available in the inner dict with a boolean value, which is `True` for
+                                explicit installed/requiered projects and 'False' for implicit ones.
     """
     args = ["--upgrade", "--quiet", "--report=-",
             "--root-user-action=ignore"]  # removes@CI "WARNING: Running pip as the 'root' user" on json-console-output
@@ -895,7 +895,7 @@ def run_git_traced(err_code: int, *cmd_args: str, exit_on_err: bool = False, log
                                 code and the :paramref:`.exit_on_err` argument is either `True` or a nonempty string.
     :param cmd_args:            command line string or a sequence of command name and separate line arguments
                                 to be run/executed on the console/shell.
-    :param exit_on_err:         pass True to exit the app on error.
+    :param exit_on_err:         pass `True` to exit the app on error.
     :param log_enable_dir:      pass the path of the directory in which git shell command logging have to get enabled.
     :return:                    output lines of git command - cleaned from GIT_TRACE messages,
                                 if :paramref:`.exit_on_err` got specified as 'False' and the executed
@@ -929,9 +929,9 @@ def run_git_traced(err_code: int, *cmd_args: str, exit_on_err: bool = False, log
         debug_out(f"    # ignored error {cl_err} of `{cmd_line}` and git trace {env_vars=}")
         output_lines.insert(0, EXEC_GIT_ERR_PREFIX + str(cl_err) + f" in {cmd_line}")
 
-    start = list_find(output_lines, STDERR_BEG_MARKER)
+    start = list_find(output_lines, 'vvv   STDERR   vvv')
     if start >= 0:
-        if git_debug or any(os.environ.get(_var, "0") in ("true", "1", "2") for _var in git_trace_vars):
+        if git_debug or any(os.environ.get(_var, '0') in ('true', '1', '2') for _var in git_trace_vars):
             print_out(" " * 6 + "git trace output:")
             for line_no in range(start + 1, len(output_lines) - 1):
                 print_out(" " * 6 + output_lines[line_no])
@@ -1065,20 +1065,23 @@ def venv_check_prefixes(venv_id: str) -> list[tuple[str, ...]]:
 
 
 def venv_module_var_val(import_name: str, var_name: str, cwd: str = ".", venv_id: str = "",
-                        validator: Callable[[Any], bool] = lambda _: True) -> Any | UnsetType | None:
-    """ determine a variable value that is declared in a Python module in any other VENV.
+                        validator: Callable[[Any], bool] = lambda _line_value: True) -> Any | UnsetType | None:
+    """ determine a variable value that is declared in a Python module in any other VENV and their Python interpreter.
 
     :param import_name:         import-/dot-name of the module to get the variable value from.
     :param var_name:            name of the variable declared within the module. the value of the variable has to be
                                 parsable by :func:`ast.literal_eval`.
     :param cwd:                 the CWD to set for the Python interpreter of the VENV to run.
-    :param venv_id:             the name/id of the Python virtual environment to use. using the VENV of the
-                                current working directory or :paramref:`.cwd`, if not specified.
-    :param validator:           callable called for each line of the console output, with the variable value as
-                                argument, returning True if the variable value is correct. useful if command line output
-                                may contain extra prefixes/lines (e.g. warnings), that have to be skipped/ignored.
-    :return:                    module variable value (parseable by :func:`ast.literal_eval`), or
-                                `UNSET` on error, if the module got not found or if the module variable doesn't exist.
+    :param venv_id:             the name/id of the Python virtual environment to use. if not specified, then this
+                                function is using the VENV of the current working directory or :paramref:`.cwd`.
+    :param validator:           optional callable, only needed if the command line output of the Python interpreter
+                                could contain extra lines (e.g. warnings), that could be misinterpreted as a
+                                variable value (not throwing SyntaxError if parsed with :func:`ast.literal_eval`).
+                                it will be called for each line of the Python interpreter output of the specified VENV
+                                with the potential variable value. if it returns a `True`-like value, then the variable
+                                value will get directly returned by this function.
+    :return:                    module variable value (parseable by :func:`ast.literal_eval`), or :data:`~ae.base.UNSET`
+                                if the module got not found or if the module variable doesn't exist.
 
     .. note:: the PyPI package/project :mod:`ae.system` has to be installed in the used/destination VENV.
     """
