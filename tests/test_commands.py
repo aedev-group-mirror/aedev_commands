@@ -22,17 +22,20 @@ from ae.base import (
     camel_to_snake, in_wd, norm_name, norm_path,
     os_path_basename, os_path_dirname, os_path_isdir, os_path_isfile, os_path_join, os_path_relpath,
     read_file, write_bin_file, write_file)
-from ae.system import load_dotenvs, load_env_var_defaults, project_main_file, os_env_venv, venv_prefix
+from ae.system import load_dotenvs, load_env_var_defaults, os_env_venv, venv_prefix
 from ae.paths import path_items
 from ae.core import (
     DEBUG_LEVEL_DISABLED, DEBUG_LEVEL_ENABLED, DEBUG_LEVEL_VERBOSE,
     main_app_instance, temp_context_cleanup, temp_context_get_or_create)
-from ae.console import MAIN_SECTION_NAME, ConsoleApp
+from ae.console import ConsoleApp
 from ae.shell import debug_or_verbose, get_domain_user_var, hint, run_cmd, run_logged_cmd
-from aedev.base import COMMIT_MSG_FILE_NAME, DEF_MAIN_BRANCH, TEST_PROJECTS_NAMESPACE, code_file_version
+from aedev.base import (
+    COMMIT_MSG_FILE_NAME, DEF_MAIN_BRANCH, DEF_PROJECT_PARENT_FOLDER, TEST_PROJECTS_NAMESPACE,
+    code_file_version, project_main_file)
+
 
 from aedev.commands import (
-    DEF_PROJECT_PARENT_FOLDER, EXEC_GIT_ERR_PREFIX,
+    EXEC_GIT_ERR_PREFIX,
     GIT_CLONE_CACHE_CONTEXT, GIT_FOLDER_NAME, GIT_REMOTE_ORIGIN, GIT_REMOTE_UPSTREAM,
     GIT_RELEASE_REF_PREFIX, GIT_VERSION_TAG_PREFIX, PIP_EDITABLE_PROJECT_PATH_PREFIX, SHELL_LOG_FILE_NAME_SUFFIX,
     VENV_ID_SEARCH_DEPTH, VENV_SUB_DIR_NAMES,
@@ -1270,16 +1273,20 @@ class TestHelpers:
         assert editable_project_root_path(pkg_name) == root_dir
 
     @skip_gitlab_ci
-    def test_editable_project_root_path_local(self):
-        if os_env_venv().startswith('aedev3'):
-            assert not editable_project_root_path('ae_base')
-        else:
-            assert not editable_project_root_path('aedev_project_tpls')
-        with in_venv('ae312'):
-            assert not editable_project_root_path('ae_base')
-        with in_venv('aedev39'):
-            prj = 'aedev_project_manager'
-            assert editable_project_root_path(prj) == norm_path(os_path_join("~", DEF_PROJECT_PARENT_FOLDER, prj))
+    def test_editable_project_root_path_local_and_keeping_aedev_venv_for_following_unit_tests(self):
+        curr_venv = os_env_venv()   # save current aedev-venv
+        try:
+            if os_env_venv().startswith('aedev3'):
+                assert not editable_project_root_path('ae_base')
+            else:
+                assert not editable_project_root_path('aedev_project_tpls')
+            with in_venv('ae312'):
+                assert not editable_project_root_path('ae_base')
+            with in_venv('aedev39'):
+                prj = 'aedev_project_manager'
+                assert editable_project_root_path(prj) == norm_path(os_path_join("~", DEF_PROJECT_PARENT_FOLDER, prj))
+        finally:
+            assert os_env_venv() == curr_venv   # test that assert error within `with in_venv()` keep current aedev venv
 
     def test_editable_project_root_path_returned(self):
         def _run_cmd_mock(*_cmd_args: str, output_lines: list[str], **_kwargs) -> int:
@@ -1294,7 +1301,7 @@ class TestHelpers:
         var_name = 'conf_var'
         domain = "tst_host.tst"
         user = "TstUserName"
-        prefix = norm_name(camel_to_snake(MAIN_SECTION_NAME)).upper()
+        prefix = norm_name(camel_to_snake('aeOptions')).upper()
         var_name_part = norm_name(camel_to_snake(var_name.lower())).upper()
         domain_part = norm_name(camel_to_snake(domain.lower())).upper()
         user_part = norm_name(camel_to_snake(user.lower())).upper()
@@ -1320,7 +1327,7 @@ class TestHelpers:
         var_name = 'conf_var'
         domain = "tst_host.tst"
         user = "TstUserName"
-        prefix = norm_name(camel_to_snake(MAIN_SECTION_NAME)).upper()
+        prefix = norm_name(camel_to_snake('aeOptions')).upper()
         var_name_part = norm_name(camel_to_snake(var_name.lower())).upper()
         domain_part = norm_name(camel_to_snake(domain.lower())).upper()
         user_part = norm_name(camel_to_snake(user.lower())).upper()
@@ -1341,7 +1348,7 @@ class TestHelpers:
         var_name = 'conf_var'
         domain = "tst_host.tst"
         user = "TstUserName"
-        prefix = norm_name(camel_to_snake(MAIN_SECTION_NAME)).upper()
+        prefix = norm_name(camel_to_snake('aeOptions')).upper()
         var_name_part = norm_name(camel_to_snake(var_name.lower())).upper()
         domain_part = norm_name(camel_to_snake(domain.lower())).upper()
         user_part = norm_name(camel_to_snake(user.lower())).upper()
@@ -1360,7 +1367,7 @@ class TestHelpers:
         var_name = 'conf_var'
         domain = "tst_host.tst"
         user = "TstUserName"
-        prefix = norm_name(camel_to_snake(MAIN_SECTION_NAME)).upper()
+        prefix = norm_name(camel_to_snake('aeOptions')).upper()
         var_name_part = norm_name(camel_to_snake(var_name.lower())).upper()
         domain_part = norm_name(camel_to_snake(domain.lower())).upper()
         user_part = norm_name(camel_to_snake(user.lower())).upper()
@@ -1431,7 +1438,7 @@ class TestHelpers:
 
 class TestShellExecuteAndLogging:
     def test_run_git_traced_with_trace(self, cons_app):
-        with patch('ae.console.ConsoleApp.verbose', new_callable=PropertyMock, return_value=True):
+        with patch('ae.core.AppBase.verbose', new_callable=PropertyMock, return_value=True):
             output = run_git_traced(0, "git", "--version", exit_on_err=False)
 
         assert output       # e.g. == ['git version 2.43.0']
@@ -1439,7 +1446,7 @@ class TestShellExecuteAndLogging:
         assert isinstance(output[0], str)
 
         # with explicit app_obj kwarg
-        with patch('ae.console.ConsoleApp.verbose', new_callable=PropertyMock, return_value=True):
+        with patch('ae.core.AppBase.verbose', new_callable=PropertyMock, return_value=True):
             output = run_git_traced(0, "git", "--version", exit_on_err=False)
 
         assert output       # e.g. == ['git version 2.43.0']
